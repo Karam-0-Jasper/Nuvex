@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-
+import LoginButton from "./LoginButton";
 const TOPICS = [
   { id: "therapy", label: "Therapy & Mental Health", icon: "🧠", desc: "Feelings, growth, wellness" },
   { id: "football", label: "Football / Soccer", icon: "⚽", desc: "Players, stats, clubs, transfers" },
@@ -157,6 +157,17 @@ function SetupScreen({ onDone }) {
       <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 520 }}>
 
         {/* Brand header */}
+        {/* Brand header */}
+<div style={{ textAlign: "center", marginBottom: 34 }}>
+  <div style={{ fontSize: 9, fontFamily: "monospace", color: "#383838", letterSpacing: 6, textTransform: "uppercase", marginBottom: 12 }}>
+    ✦ Intelligence, Defined ✦
+  </div>
+  <h1 style={{ fontSize: "clamp(52px, 13vw, 80px)", fontStyle: "italic", fontWeight: 900, margin: 0, lineHeight: 0.9 }}>
+    Nuvex
+  </h1>
+</div>
+
+<LoginButton />
         <div style={{ textAlign: "center", marginBottom: 34 }}>
           <div style={{ fontSize: 9, fontFamily: "monospace", color: "#383838", letterSpacing: 6, textTransform: "uppercase", marginBottom: 12 }}>
             ✦ Intelligence, Defined ✦
