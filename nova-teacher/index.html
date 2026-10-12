@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eceeef">
+<title>Nova Whiteboard Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Nunito:wght@400;600;800&display=swap">
+<style>
+/* Layout: a plain wall; a black-and-white teacher stands beside a whiteboard, speech bubble and a simple message bar below. */
+:root {
+  --wall: #eceeef;
+  --ink: #17191b;
+  --muted: #5b6166;
+  --surface: #ffffff;
+  --line: #cfd3d6;
+  --send: #17191b;
+  --send-ink: #ffffff;
+  --board: #fbfbf9;
+  --frame: #b6bcc2;
+  --frame-dark: #8f969d;
+  --marker: #141414;
+  --marker-soft: rgba(20, 20, 20, .38);
+  --shade: #d6d8da;
+  --bot: #ffffff;
+  --bot-line: #111111;
+  --bad: #b23b2c;
+  --font-board: "Kalam", "Comic Sans MS", "Segoe Print", cursive;
+  --font-ui: "Nunito", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --wall: #121415; --ink: #eceeef; --muted: #a0a7ac; --surface: #1c1f21; --line: #33383b;
+    --send: #eceeef; --send-ink: #121415; --frame: #6d747a; --frame-dark: #50565b; --bad: #ef8f7f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --wall: #121415; --ink: #eceeef; --muted: #a0a7ac; --surface: #1c1f21; --line: #33383b;
+  --send: #eceeef; --send-ink: #121415; --frame: #6d747a; --frame-dark: #50565b; --bad: #ef8f7f; color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 18px 40px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.brand h1 { margin: 0; font-family: var(--font-board); font-weight: 700; font-size: 30px; line-height: 1.1; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+
+button { font: inherit; cursor: pointer; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 14px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { border-color: var(--ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+/* Stage */
+.stage {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  grid-template-areas: "nova board" "nova cap";
+  row-gap: 14px;
+  align-items: end;
+}
+.nova-wrap { grid-area: nova; align-self: end; position: relative; z-index: 2; margin-right: -26px; }
+.board-frame {
+  grid-area: board; min-width: 0;
+  background: linear-gradient(180deg, var(--frame) 0%, var(--frame-dark) 100%);
+  border-radius: 8px; padding: 9px; position: relative;
+  box-shadow: 0 10px 30px rgba(0,0,0,.14);
+}
+.board-frame::after { /* marker tray */
+  content: ""; position: absolute; left: 10%; right: 10%; bottom: -6px; height: 8px;
+  background: var(--frame-dark); border-radius: 0 0 4px 4px;
+}
+.board {
+  position: relative;
+  height: clamp(360px, 46vw, 500px);
+  background: linear-gradient(160deg, rgba(255,255,255,.9), rgba(255,255,255,0) 40%), var(--board);
+  border-radius: 3px;
+  color: var(--marker);
+  font-family: var(--font-board);
+  padding: 18px 22px 18px 44px;
+  display: flex; flex-direction: column; gap: 10px;
+  overflow: hidden;
+}
+.board-title {
+  font-size: clamp(22px, 2.6vw, 32px); font-weight: 700; line-height: 1.15;
+  border-bottom: 2.5px solid var(--marker); padding-bottom: 6px; min-height: 1.3em;
+  text-wrap: balance;
+}
+.steps { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 14px; }
+.step { display: flex; gap: 14px; align-items: center; transition: opacity .5s; }
+.step.old { opacity: .45; }
+.step .lines { flex: 1 1 0; min-width: 0; display: grid; gap: 2px; }
+.step .line { font-size: clamp(18px, 2.1vw, 25px); line-height: 1.3; overflow-wrap: anywhere; }
+.step .art { flex: 0 0 auto; width: clamp(84px, 18vw, 190px); }
+.step .art.wide { width: clamp(120px, 30vw, 320px); }
+.step .art svg { width: 100%; height: auto; display: block; max-height: 140px; }
+.c { opacity: 0; transition: opacity .12s; }
+.c.on { opacity: 1; }
+.hl { font-weight: 700; text-decoration: underline; text-decoration-thickness: 2.5px; text-underline-offset: 5px; }
+
+.board-note { position: absolute; right: 22px; bottom: 14px; font-size: 13px; color: var(--marker-soft); font-family: var(--font-ui); }
+.thinking { display: flex; gap: 10px; align-items: center; font-size: 22px; color: var(--marker-soft); padding-top: 18px; }
+.thinking i { width: 10px; height: 10px; background: var(--marker-soft); border-radius: 50%; animation: dot 1.2s infinite ease-in-out; }
+.thinking i:nth-child(2) { animation-delay: .15s; } .thinking i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 0%, 80%, 100% { transform: translateY(0); opacity: .4 } 40% { transform: translateY(-8px); opacity: 1 } }
+
+/* marker drawing */
+.draw { fill: none; stroke: var(--marker); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1; animation: drawin 1.1s ease forwards; }
+.fillin { opacity: 0; animation: fadein .6s ease forwards; animation-delay: .9s; }
+.lbl { fill: var(--marker); font-family: var(--font-board); font-size: 13px; opacity: 0; animation: fadein .5s ease forwards; animation-delay: .7s; }
+.lbl.b { font-weight: 700; }
+@keyframes drawin { to { stroke-dashoffset: 0; } }
+@keyframes fadein { to { opacity: 1; } }
+
+/* caption bubble */
+.caption {
+  grid-area: cap; min-width: 0; position: relative; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 16px; padding: 12px 16px 12px 40px; min-height: 52px; margin-left: 30px;
+}
+.caption::before {
+  content: ""; position: absolute; left: -9px; top: 18px; width: 16px; height: 16px;
+  background: var(--surface); border-left: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  transform: rotate(45deg);
+}
+.caption .who { font-weight: 800; margin-right: 6px; }
+.caption .say { font-size: 16px; }
+.caption .err { color: var(--bad); font-weight: 600; }
+
+/* teacher (black and white) */
+#nova { width: 100%; height: auto; display: block; overflow: visible; }
+#nova .bob { animation: bob 3.2s ease-in-out infinite; transform-origin: 80px 230px; }
+#nova .eyes { animation: blink 4.6s infinite; transform-box: fill-box; transform-origin: center; }
+#nova #mouth { transform-box: fill-box; transform-origin: center; }
+#nova.talking #mouth { animation: talk .28s infinite alternate ease-in-out; }
+#nova .head { transition: transform .5s; transform-box: view-box; transform-origin: 80px 100px; }
+#nova.thinking .head { transform: rotate(-8deg); }
+#nova .arm-point { transition: transform .5s; transform-box: view-box; transform-origin: 112px 124px; transform: rotate(38deg); }
+#nova.talking .arm-point { transform: rotate(0deg); animation: point 2.4s ease-in-out infinite; }
+#nova .thought { opacity: 0; transition: opacity .4s; }
+#nova.thinking .thought { opacity: 1; }
+#nova.thinking .thought circle { animation: dot 1.4s infinite ease-in-out; }
+#nova.thinking .thought circle:nth-child(2) { animation-delay: .2s; }
+#nova.thinking .thought circle:nth-child(3) { animation-delay: .4s; }
+@keyframes bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1) } 96% { transform: scaleY(.1) } }
+@keyframes talk { from { transform: scaleY(.35) } to { transform: scaleY(1.6) } }
+@keyframes point { 0%, 100% { transform: rotate(0deg) } 50% { transform: rotate(-12deg) } }
+
+/* message bar */
+.ask { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.attached { display: flex; gap: 8px; flex-wrap: wrap; }
+.file-chip {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: 5px 6px; font-size: 13px; max-width: 100%;
+}
+.file-chip img { width: 36px; height: 36px; object-fit: cover; border-radius: 8px; }
+.file-chip .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.file-chip button { border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; padding: 2px 6px; }
+.ask-row {
+  display: flex; gap: 6px; align-items: center; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px;
+}
+.ask-row:focus-within { border-color: var(--ink); }
+.ask-row input[type="text"] {
+  flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--ink); background: transparent;
+  border: 0; padding: 8px 6px;
+}
+.ask-row input[type="text"]:focus { outline: none; }
+.icon-btn {
+  width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; border: 0; background: transparent;
+  color: var(--ink); display: grid; place-items: center;
+}
+.icon-btn:hover { background: var(--wall); }
+.icon-btn svg { width: 21px; height: 21px; }
+.icon-btn.listening { background: var(--bad); color: #fff; animation: pulse 1s infinite; }
+.icon-btn.send { background: var(--send); color: var(--send-ink); }
+.icon-btn.send:disabled { opacity: .4; cursor: default; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(178,59,44,.2); } }
+.note { font-size: 13px; color: var(--muted); margin: 0; padding-left: 14px; min-height: 1.2em; }
+.note.err { color: var(--bad); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .stage { grid-template-columns: 84px minmax(0, 1fr); grid-template-areas: "board board" "nova cap"; }
+  .nova-wrap { margin-right: 0; margin-top: -30px; }
+  .caption { margin-left: 14px; padding-left: 18px; }
+  .board { height: 400px; padding: 14px 14px 14px 18px; }
+  .brand h1 { font-size: 26px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .draw { stroke-dashoffset: 0; } .fillin, .lbl { opacity: 1; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="eyebrow">Nuvex</span>
+      <h1>Nova, your whiteboard teacher</h1>
+    </div>
+    <div class="tools">
+      <button class="btn" id="voiceBtn" aria-pressed="true" title="Turn Nova's voice on or off">🔊 Voice on</button>
+      <button class="btn" id="replayBtn">↺ Replay</button>
+      <button class="btn" id="stopBtn" hidden>■ Stop</button>
+    </div>
+  </header>
+
+  <section class="stage" aria-label="Classroom">
+    <div class="nova-wrap">
+      <svg id="nova" viewBox="0 0 160 250" role="img" aria-label="Nova the teacher holding a black marker">
+        <g class="thought">
+          <circle cx="118" cy="22" r="4" fill="var(--bot)" stroke="var(--bot-line)" stroke-width="2"></circle>
+          <circle cx="130" cy="12" r="5" fill="var(--bot)" stroke="var(--bot-line)" stroke-width="2"></circle>
+          <circle cx="145" cy="4" r="6" fill="var(--bot)" stroke="var(--bot-line)" stroke-width="2"></circle>
+        </g>
+        <g class="bob" stroke="var(--bot-line)" stroke-width="3" stroke-linejoin="round">
+          <!-- legs -->
+          <rect x="60" y="192" width="15" height="44" rx="6" fill="var(--bot-line)"></rect>
+          <rect x="85" y="192" width="15" height="44" rx="6" fill="var(--bot-line)"></rect>
+          <ellipse cx="66" cy="238" rx="13" ry="6" fill="var(--bot-line)"></ellipse>
+          <ellipse cx="94" cy="238" rx="13" ry="6" fill="var(--bot-line)"></ellipse>
+          <!-- other arm, relaxed -->
+          <path d="M50 128 Q34 150 42 172" fill="none" stroke="var(--bot-line)" stroke-width="15" stroke-linecap="round"></path>
+          <path d="M50 128 Q34 150 42 172" fill="none" stroke="var(--bot)" stroke-width="9" stroke-linecap="round"></path>
+          <circle cx="42" cy="174" r="7" fill="var(--bot)"></circle>
+          <!-- body -->
+          <rect x="44" y="110" width="72" height="92" rx="24" fill="var(--bot)"></rect>
+          <path d="M66 112 L80 128 L94 112" fill="none" stroke-linecap="round"></path>
+          <circle cx="80" cy="146" r="3" fill="var(--bot-line)" stroke="none"></circle>
+          <circle cx="80" cy="162" r="3" fill="var(--bot-line)" stroke="none"></circle>
+          <rect x="72" y="98" width="16" height="14" rx="5" fill="var(--bot)"></rect>
+          <!-- pointing arm with black marker -->
+          <g class="arm-point">
+            <path d="M112 124 Q128 112 140 94" fill="none" stroke="var(--bot-line)" stroke-width="15" stroke-linecap="round"></path>
+            <path d="M112 124 Q128 112 140 94" fill="none" stroke="var(--bot)" stroke-width="9" stroke-linecap="round"></path>
+            <g transform="rotate(35 146 82)">
+              <rect x="142" y="64" width="9" height="26" rx="3" fill="var(--bot-line)" stroke="none"></rect>
+              <rect x="143.5" y="58" width="6" height="8" rx="2" fill="var(--bot-line)" stroke="none"></rect>
+              <rect x="142" y="74" width="9" height="3" fill="var(--bot)" stroke="none"></rect>
+            </g>
+            <circle cx="141" cy="92" r="7.5" fill="var(--bot)"></circle>
+          </g>
+          <!-- head -->
+          <g class="head">
+            <circle cx="46" cy="72" r="6" fill="var(--bot)"></circle>
+            <circle cx="114" cy="72" r="6" fill="var(--bot)"></circle>
+            <circle cx="80" cy="68" r="34" fill="var(--bot)"></circle>
+            <path d="M46 64 Q44 31 80 31 Q116 31 114 62 Q104 48 86 46 Q70 54 48 52 Z" fill="var(--bot-line)"></path>
+            <g class="eyes" stroke="none">
+              <circle cx="68" cy="70" r="3.8" fill="var(--bot-line)"></circle>
+              <circle cx="92" cy="70" r="3.8" fill="var(--bot-line)"></circle>
+            </g>
+            <path d="M62 61 Q68 58 74 61 M86 61 Q92 58 98 61" fill="none" stroke-width="2.4" stroke-linecap="round"></path>
+            <ellipse id="mouth" cx="80" cy="86" rx="7" ry="3" fill="var(--bot-line)" stroke="none"></ellipse>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <div class="board-frame">
+      <div class="board" id="board" aria-live="polite">
+        <div class="board-title" id="boardTitle"></div>
+        <div class="steps" id="steps"></div>
+        <div class="board-note" id="boardNote"></div>
+      </div>
+    </div>
+
+    <div class="caption" id="caption" aria-live="polite">
+      <span class="who">Nova:</span><span class="say" id="say"></span>
+    </div>
+  </section>
+
+  <form class="ask" id="askForm" autocomplete="off">
+    <div class="attached" id="attached" hidden></div>
+    <div class="ask-row">
+      <button type="button" class="icon-btn" id="attachBtn" title="Send a picture or file" aria-label="Send a picture or file">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3L15 7.5"></path></svg>
+      </button>
+      <input type="file" id="fileInput" accept="image/*,.txt,.md,.csv,.json,text/plain" hidden>
+      <input id="question" type="text" placeholder="Ask Nova anything…" aria-label="Your question">
+      <button type="button" class="icon-btn" id="micBtn" title="Speak your question" aria-label="Speak your question" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+      </button>
+      <button type="submit" class="icon-btn send" id="askBtn" title="Send" aria-label="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
+      </button>
+    </div>
+    <p class="note" id="note"></p>
+  </form>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const nova = $("#nova"), stepsEl = $("#steps"), titleEl = $("#boardTitle"), sayEl = $("#say");
+  const noteEl = $("#note"), boardNote = $("#boardNote");
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const EXAMPLE = {
+    title: "What is a fraction?",
+    question: "What is a fraction?",
+    steps: [
+      { say: "Imagine one pizza, and four friends who all want some. We cut it into four equal slices.", board: ["1 pizza → [[4 equal slices]]"], draw: { type: "pie", parts: 4, filled: 0 } },
+      { say: "You grab one slice. One slice out of four is written as one over four. We call it one quarter.", board: ["you take [[1]] slice", "out of [[4]] slices  =  [[1/4]]"], draw: { type: "pie", parts: 4, filled: 1 } },
+      { say: "The bottom number says how many equal pieces the whole thing was cut into. The top number says how many pieces you have.", board: ["top = pieces you [[have]]", "bottom = pieces in [[total]]"] },
+      { say: "So if you take three slices, you have three quarters of the pizza. Only one slice is left for your friends!", board: ["3 slices of 4 = [[3/4]]"], draw: { type: "pie", parts: 4, filled: 3 } },
+    ],
+    done: true,
+  };
+
+  const state = { token: 0, ctl: null, voiceOn: true, lesson: EXAMPLE, busy: false, file: null };
+
+  /* ---------- helpers ---------- */
+  const plain = (t) => String(t || "").replace(/\[\[|\]\]/g, "");
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const num = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+
+  function setMood(m) { nova.classList.remove("talking", "thinking"); if (m) nova.classList.add(m); }
+  function setSay(text, isErr) { sayEl.className = isErr ? "say err" : "say"; sayEl.textContent = plain(text); }
+  function setNote(text, isErr) { noteEl.textContent = text || ""; noteEl.className = isErr ? "note err" : "note"; }
+  function setBusy(b) { state.busy = b; $("#stopBtn").hidden = !b; $("#askBtn").disabled = b; }
+
+  /* ---------- voice out ----------
+     Phones only allow speech that starts from a tap, so the first tap anywhere
+     "unlocks" the voice. Text is spoken one sentence at a time, because some
+     browsers silently stop speaking after about 15 seconds. */
+  const TTS = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+  let voice = null, unlocked = false, ttsHeard = false, ttsWarned = false;
+  function pickVoice() {
+    if (!TTS) return;
+    const vs = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang));
+    const pref = ["Natural", "Google US English", "Samantha", "Aria", "Jenny", "Daniel", "Google UK English Male"];
+    voice = pref.map((p) => vs.find((v) => v.name.includes(p))).find(Boolean) || vs[0] || null;
+  }
+  if (TTS) { pickVoice(); speechSynthesis.addEventListener?.("voiceschanged", pickVoice); }
+
+  function unlockVoice() {
+    if (!TTS || unlocked) return;
+    unlocked = true;
+    try {
+      speechSynthesis.cancel(); speechSynthesis.resume();
+      const u = new SpeechSynthesisUtterance("."); u.volume = 0; u.rate = 2;
+      speechSynthesis.speak(u);
+    } catch {}
+  }
+  document.addEventListener("pointerdown", unlockVoice, { capture: true });
+  document.addEventListener("keydown", unlockVoice, { capture: true });
+
+  function warnNoSound() {
+    if (ttsWarned) return; ttsWarned = true;
+    setNote("No sound? This app is blocking Nova's voice. Open the page in Safari or Chrome, and check your phone isn't on silent.", true);
+  }
+  if (!TTS) warnNoSound();
+
+  function sentences(text) {
+    return (plain(text).match(/[^.!?]+[.!?]*/g) || [plain(text)]).map((s) => s.trim()).filter(Boolean);
+  }
+
+  function speakOne(text, token) {
+    const est = 700 + text.split(/\s+/).length * 360;
+    return new Promise((res) => {
+      if (token !== state.token) return res();
+      const u = new SpeechSynthesisUtterance(text);
+      if (voice) u.voice = voice;
+      u.lang = voice?.lang || "en-US";
+      u.rate = 0.97; u.pitch = 1.05; u.volume = 1;
+      let done = false, started = false;
+      const fin = () => { if (done) return; done = true; clearTimeout(t1); clearTimeout(t2); res(); };
+      const t1 = setTimeout(fin, est * 2.5 + 3000);
+      // if speech never starts, the app is blocking it: keep the lesson moving silently
+      const t2 = setTimeout(() => { if (!started && !speechSynthesis.speaking) { warnNoSound(); setTimeout(fin, est); } }, 2500);
+      u.onstart = () => { started = true; ttsHeard = true; };
+      u.onend = fin;
+      u.onerror = (e) => { if (e.error === "not-allowed") warnNoSound(); fin(); };
+      try { speechSynthesis.resume(); speechSynthesis.speak(u); } catch { warnNoSound(); fin(); }
+    });
+  }
+
+  async function speak(text, token) {
+    nova.classList.add("talking");
+    if (!state.voiceOn || !TTS || (ttsWarned && !ttsHeard)) {
+      await sleep(900 + plain(text).split(/\s+/).length * 360);
+    } else {
+      for (const s of sentences(text)) { if (token !== state.token) break; await speakOne(s, token); }
+    }
+    nova.classList.remove("talking");
+  }
+
+  /* ---------- board ---------- */
+  function clearBoard() { stepsEl.innerHTML = ""; titleEl.textContent = ""; boardNote.textContent = ""; }
+
+  function segs(text) {
+    const out = []; const re = /\[\[(.+?)\]\]/g; let last = 0, m;
+    const s = String(text || "");
+    while ((m = re.exec(s))) { if (m.index > last) out.push([s.slice(last, m.index), false]); out.push([m[1], true]); last = re.lastIndex; }
+    if (last < s.length) out.push([s.slice(last), false]);
+    return out;
+  }
+
+  function buildLine(text) {
+    const div = document.createElement("div"); div.className = "line";
+    const chars = [];
+    for (const [t, hl] of segs(text)) {
+      const wrap = document.createElement("span"); if (hl) wrap.className = "hl";
+      for (const ch of t) { const c = document.createElement("span"); c.className = "c"; c.textContent = ch; wrap.append(c); chars.push(c); }
+      div.append(wrap);
+    }
+    return { div, chars };
+  }
+
+  const NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.append(e);
+    return e;
+  }
+  function stroke(tag, attrs, parent) { return el(tag, { ...attrs, pathLength: 1, class: "draw" }, parent); }
+  function label(x, y, text, parent, cls = "") { const t = el("text", { x, y, "text-anchor": "middle", class: ("lbl " + cls).trim() }, parent); t.textContent = text; return t; }
+
+  function drawArt(d) {
+    if (!d || typeof d !== "object") return null;
+    const type = String(d.type || "");
+    let svg, wide = false;
+    if (type === "pie") {
+      const n = Math.round(num(d.parts, 1, 12, 4)), f = Math.round(num(d.filled, 0, n, 0));
+      svg = el("svg", { viewBox: "0 0 100 100" });
+      const cx = 50, cy = 50, r = 42;
+      for (let i = 0; i < f; i++) {
+        const a0 = -Math.PI / 2 + (i / n) * 2 * Math.PI, a1 = -Math.PI / 2 + ((i + 1) / n) * 2 * Math.PI;
+        const large = a1 - a0 > Math.PI ? 1 : 0;
+        const p = n === 1
+          ? `M${cx - r} ${cy} A${r} ${r} 0 1 1 ${cx + r} ${cy} A${r} ${r} 0 1 1 ${cx - r} ${cy}Z`
+          : `M${cx} ${cy} L${cx + r * Math.cos(a0)} ${cy + r * Math.sin(a0)} A${r} ${r} 0 ${large} 1 ${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)}Z`;
+        el("path", { d: p, fill: "var(--shade)", class: "fillin" }, svg);
+      }
+      stroke("circle", { cx, cy, r }, svg);
+      if (n > 1) for (let i = 0; i < n; i++) {
+        const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
+        stroke("line", { x1: cx, y1: cy, x2: cx + r * Math.cos(a), y2: cy + r * Math.sin(a) }, svg);
+      }
+    } else if (type === "groups") {
+      const g = Math.round(num(d.groups, 1, 6, 3)), e = Math.round(num(d.each, 0, 10, 3));
+      const cols = g <= 3 ? g : 3, rows = Math.ceil(g / cols), cell = 60;
+      svg = el("svg", { viewBox: `0 0 ${cols * cell} ${rows * cell}` }); wide = cols > 2;
+      for (let i = 0; i < g; i++) {
+        const gx = (i % cols) * cell + cell / 2, gy = Math.floor(i / cols) * cell + cell / 2;
+        stroke("circle", { cx: gx, cy: gy, r: 26 }, svg);
+        const dc = Math.ceil(Math.sqrt(e)), sp = 9;
+        for (let k = 0; k < e; k++) {
+          const dx = (k % dc) - (dc - 1) / 2, dy = Math.floor(k / dc) - (Math.ceil(e / dc) - 1) / 2;
+          el("circle", { cx: gx + dx * sp, cy: gy + dy * sp, r: 3, fill: "var(--marker)", class: "fillin" }, svg);
+        }
+      }
+    } else if (type === "line") {
+      let a = num(d.from, -1000, 1000, 0), b = num(d.to, -1000, 1000, 10);
+      if (b <= a) b = a + 10;
+      const W = 300, x0 = 18, x1 = W - 18, X = (v) => x0 + ((v - a) / (b - a)) * (x1 - x0);
+      svg = el("svg", { viewBox: `0 0 ${W} 70` }); wide = true;
+      stroke("line", { x1: x0 - 8, y1: 40, x2: x1 + 8, y2: 40 }, svg);
+      const range = b - a, step = range <= 12 ? 1 : Math.ceil(range / 10);
+      const first = Math.ceil(a / step) * step;
+      for (let v = first; v <= b + 1e-9; v += step) {
+        stroke("line", { x1: X(v), y1: 34, x2: X(v), y2: 46 }, svg);
+        label(X(v), 62, String(+v.toFixed(2)), svg);
+      }
+      (Array.isArray(d.marks) ? d.marks : []).slice(0, 6).forEach((m) => {
+        const v = Number(m); if (!Number.isFinite(v) || v < a || v > b) return;
+        el("circle", { cx: X(v), cy: 40, r: 5.5, fill: "var(--marker)", class: "fillin" }, svg);
+        label(X(v), 24, String(v), svg, "b");
+      });
+    } else if (type === "bars") {
+      const vals = (Array.isArray(d.values) ? d.values : []).slice(0, 6).map((v) => num(v, 0, 1e9, 0));
+      if (!vals.length) return null;
+      const labels = Array.isArray(d.labels) ? d.labels : [];
+      const max = Math.max(...vals, 1), W = 40 * vals.length + 20, H = 110, base = 88;
+      svg = el("svg", { viewBox: `0 0 ${W} ${H}` }); wide = vals.length > 3;
+      stroke("line", { x1: 6, y1: base, x2: W - 6, y2: base }, svg);
+      vals.forEach((v, i) => {
+        const h = (v / max) * 66, x = 18 + i * 40;
+        el("rect", { x, y: base - h, width: 24, height: Math.max(h, 0.5), fill: "var(--shade)", class: "fillin" }, svg);
+        stroke("rect", { x, y: base - h, width: 24, height: Math.max(h, 0.5) }, svg);
+        label(x + 12, base - h - 5, String(v), svg, "b");
+        label(x + 12, base + 16, String(labels[i] ?? "").slice(0, 6), svg);
+      });
+    } else return null;
+    const box = document.createElement("div"); box.className = "art" + (wide ? " wide" : "");
+    box.append(svg);
+    return box;
+  }
+
+  function addStep(step) {
+    [...stepsEl.children].forEach((c) => c.classList.add("old"));
+    const div = document.createElement("div"); div.className = "step";
+    const lines = document.createElement("div"); lines.className = "lines";
+    const allChars = [];
+    for (const t of step.board) { const { div: l, chars } = buildLine(t); lines.append(l); allChars.push(...chars); }
+    div.append(lines);
+    const art = drawArt(step.draw);
+    if (art) { art.style.visibility = "hidden"; div.append(art); }
+    stepsEl.append(div);
+    // wipe the oldest steps when the board runs out of space
+    while (stepsEl.scrollHeight > stepsEl.clientHeight + 2 && stepsEl.children.length > 1) stepsEl.firstElementChild.remove();
+    return { chars: allChars, art };
+  }
+
+  async function writeStep(step, token, instant) {
+    const { chars, art } = addStep(step);
+    if (instant || reduced) { chars.forEach((c) => c.classList.add("on")); if (art) art.style.visibility = ""; return; }
+    for (const c of chars) {
+      if (token !== state.token) return;
+      c.classList.add("on");
+      if (c.textContent.trim()) await sleep(34);
+    }
+    if (art && token === state.token) { art.style.visibility = ""; await sleep(900); }
+  }
+
+  function showStatic(lesson) {
+    clearBoard();
+    titleEl.textContent = plain(lesson.title);
+    lesson.steps.forEach((s) => writeStep(s, state.token, true));
+    [...stepsEl.children].forEach((c, i, arr) => c.classList.toggle("old", i < arr.length - 1));
+  }
+
+  /* ---------- lesson player ---------- */
+  async function play(lesson, token) {
+    clearBoard();
+    if (lesson.title) titleEl.textContent = plain(lesson.title);
+    let i = 0;
+    while (token === state.token) {
+      if (i < lesson.steps.length) {
+        stepsEl.querySelector(".thinking")?.remove();
+        const s = lesson.steps[i++];
+        setMood(null); setSay(s.say);
+        await Promise.all([speak(s.say, token), writeStep(s, token)]);
+        if (token !== state.token) return;
+        await sleep(350);
+        continue;
+      }
+      if (lesson.done) break;
+      await new Promise((r) => { lesson.wake = r; });
+    }
+    if (token !== state.token) return;
+    setMood(null);
+    setBusy(false);
+  }
+
+  function stopAll() {
+    state.token++;
+    state.ctl?.abort(); state.ctl = null;
+    if (TTS) speechSynthesis.cancel();
+    setMood(null); setBusy(false);
+  }
+
+  /* ---------- attachments ---------- */
+  const TEXT_TYPES = /^(text\/|application\/json)/;
+  function renderAttached() {
+    const box = $("#attached"); box.innerHTML = "";
+    const f = state.file;
+    box.hidden = !f;
+    if (!f) return;
+    const chip = document.createElement("div"); chip.className = "file-chip";
+    if (f.kind === "image") { const img = document.createElement("img"); img.src = f.url; img.alt = ""; chip.append(img); }
+    else { const ic = document.createElement("span"); ic.textContent = "📄"; chip.append(ic); }
+    const name = document.createElement("span"); name.className = "fname"; name.textContent = f.name; chip.append(name);
+    const x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.setAttribute("aria-label", "Remove " + f.name);
+    x.onclick = () => clearFile(); chip.append(x);
+    box.append(chip);
+  }
+  function clearFile() {
+    if (state.file?.url) URL.revokeObjectURL(state.file.url);
+    state.file = null; $("#fileInput").value = ""; renderAttached();
+  }
+  $("#attachBtn").addEventListener("click", () => $("#fileInput").click());
+  $("#fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    clearFile(); setNote("");
+    if (file.type.startsWith("image/")) {
+      state.file = { kind: "image", name: file.name || "picture", blob: file, url: URL.createObjectURL(file) };
+    } else if (TEXT_TYPES.test(file.type) || /\.(txt|md|csv|json)$/i.test(file.name)) {
+      try { state.file = { kind: "text", name: file.name, text: (await file.text()).slice(0, 20000) }; }
+      catch { setNote("Couldn't read that file. Try another one.", true); }
+    } else {
+      setNote("Nova can read pictures and text files (.txt, .md, .csv). For anything else, send a screenshot.", true);
+    }
+    renderAttached();
+    $("#question").focus();
+  });
+
+  /* ---------- asking Claude (through this site's /api/teach) ---------- */
+  const ERRORS = {
+    missing_key: "My brain isn't connected yet. Add ANTHROPIC_API_KEY in the Vercel project settings, then redeploy.",
+    bad_key: "The Claude API key on the server is wrong or expired. Update ANTHROPIC_API_KEY in Vercel.",
+    rate_limited: "Too many questions in a short time. Wait a minute, then ask again.",
+    too_large: "That's too much to read at once. Try a shorter question or a smaller file.",
+    bad_image: "I couldn't open that picture. Try a JPG or PNG.",
+  };
+
+  // shrink photos so they upload fast and stay under the server's size limit
+  async function imageToJpeg(blob) {
+    const bmp = await createImageBitmap(blob);
+    const k = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const out = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+    const url = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(out); });
+    return { media_type: "image/jpeg", data: String(url).split(",")[1] };
+  }
+
+  async function streamTeach(payload, signal, onDelta) {
+    let r;
+    try {
+      r = await fetch("/api/teach", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload), signal });
+    } catch (e) { throw { code: e?.name === "AbortError" ? "cancelled" : "offline" }; }
+    if (!r.ok) { let code = "upstream_error"; try { code = (await r.json()).error || code; } catch {} throw { code }; }
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    try {
+      for (;;) { const { done, value } = await reader.read(); if (done) break; onDelta(dec.decode(value, { stream: true })); }
+    } catch (e) { throw { code: e?.name === "AbortError" ? "cancelled" : "upstream_error" }; }
+  }
+
+  function normStep(o) {
+    const board = (Array.isArray(o.board) ? o.board : o.board ? [o.board] : []).map(String).filter(Boolean).slice(0, 3);
+    return { say: String(o.say || ""), board, draw: o.draw };
+  }
+
+  async function ask(q) {
+    q = String(q || "").trim();
+    const file = state.file;
+    if (!q && !file) { $("#question").focus(); return; }
+    if (!q) q = file.kind === "image" ? "Teach me what's in this picture." : "Teach me what's in this file.";
+    stopAll();
+    const token = state.token;
+    $("#question").value = "";
+    clearFile();
+    const lesson = { title: "", steps: [], done: false, question: q, wake: null };
+    state.lesson = lesson;
+    setBusy(true);
+    const player = play(lesson, token); // clears the board, then waits for steps
+    titleEl.textContent = q.length > 60 ? q.slice(0, 57) + "…" : q;
+    const th = document.createElement("div"); th.className = "thinking"; th.innerHTML = "<i></i><i></i><i></i><span>thinking of the simplest way…</span>";
+    stepsEl.append(th);
+    setMood("thinking");
+    setSay("Good question. Let me think of the simplest way to show you…");
+
+    const wake = () => { const w = lesson.wake; lesson.wake = null; w?.(); };
+    const eat = (line) => {
+      line = line.trim().replace(/^```(?:json)?/, "").replace(/```$/, "").trim();
+      if (!line.startsWith("{")) return;
+      let o; try { o = JSON.parse(line); } catch { return; }
+      if (o.say || o.board) lesson.steps.push(normStep(o));
+      else if (o.title && !lesson.title) { lesson.title = String(o.title); if (!lesson.steps.length) titleEl.textContent = plain(lesson.title); }
+      wake();
+    };
+    const ctl = new AbortController(); state.ctl = ctl;
+    let pending = "";
+    try {
+      const payload = { question: q };
+      if (file?.kind === "image") payload.image = await imageToJpeg(file.blob).catch(() => { throw { code: "bad_image" }; });
+      if (file?.kind === "text") { payload.fileText = file.text; payload.fileName = file.name; }
+      await streamTeach(payload, ctl.signal, (delta) => {
+        const lines = (pending + delta).split("\n"); pending = lines.pop(); lines.forEach(eat);
+      });
+      eat(pending);
+      if (!lesson.steps.length && token === state.token) setSay("Hmm, I got muddled. Ask me again and I'll take another shot.", true);
+    } catch (e) {
+      if (e?.code === "cancelled") return;
+      eat(pending);
+      if (token === state.token && !lesson.steps.length) {
+        stepsEl.innerHTML = "";
+        setMood(null);
+        setSay(ERRORS[e?.code] || (e?.code === "offline" ? "I can't reach the internet right now. Check your connection and try again." : "I couldn't reach Claude just now. Try again in a moment."), true);
+      } else if (token === state.token) {
+        setNote("The lesson was cut short. Ask again to get the rest.", true);
+      }
+    } finally {
+      if (state.ctl === ctl) state.ctl = null;
+      lesson.done = true; wake();
+    }
+    await player;
+    if (token === state.token) setBusy(false);
+  }
+
+  /* ---------- voice in ---------- */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = $("#micBtn");
+  if (SR) {
+    micBtn.hidden = false;
+    let rec = null;
+    micBtn.addEventListener("click", () => {
+      if (rec) { rec.stop(); return; }
+      rec = new SR();
+      rec.lang = navigator.language || "en-US";
+      rec.interimResults = true; rec.continuous = false;
+      let finalText = "";
+      rec.onresult = (ev) => {
+        let t = "";
+        for (const r of ev.results) t += r[0].transcript;
+        $("#question").value = t;
+        if (ev.results[ev.results.length - 1].isFinal) finalText = t;
+      };
+      rec.onerror = (ev) => {
+        if (["not-allowed", "service-not-allowed", "network", "audio-capture"].includes(ev.error)) {
+          setNote("The microphone isn't available here. Use your keyboard's dictation button instead.", true);
+          micBtn.hidden = true;
+        }
+      };
+      rec.onend = () => { micBtn.classList.remove("listening"); rec = null; if (finalText.trim()) ask(finalText); };
+      try { rec.start(); micBtn.classList.add("listening"); setNote("Listening… ask your question out loud."); }
+      catch { rec = null; setNote("The microphone isn't available here. Use your keyboard's dictation button instead.", true); micBtn.hidden = true; }
+    });
+  }
+
+  /* ---------- wiring ---------- */
+  $("#askForm").addEventListener("submit", (e) => { e.preventDefault(); unlockVoice(); ask($("#question").value); });
+  $("#voiceBtn").addEventListener("click", () => {
+    state.voiceOn = !state.voiceOn;
+    $("#voiceBtn").setAttribute("aria-pressed", String(state.voiceOn));
+    $("#voiceBtn").textContent = state.voiceOn ? "🔊 Voice on" : "🔇 Voice off";
+    if (!state.voiceOn && TTS) speechSynthesis.cancel();
+  });
+  $("#stopBtn").addEventListener("click", () => { stopAll(); setSay("Okay, paused. Press Replay or ask me something else."); });
+  $("#replayBtn").addEventListener("click", () => {
+    const l = state.lesson; if (!l?.steps.length) return;
+    stopAll();
+    const token = state.token; setBusy(true);
+    play({ ...l, done: true }, token);
+  });
+
+  /* ---------- first frame: the example lesson, at rest ---------- */
+  showStatic(EXAMPLE);
+  setSay("Hi, I'm Nova! Here's an example lesson on fractions. Press Replay to hear it, or ask me anything below.");
+  boardNote.textContent = "example lesson";
+})();
+</script>
+</body>
+</html>
