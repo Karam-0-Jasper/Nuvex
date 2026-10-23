@@ -6,7 +6,7 @@ founded in 2023 by Abubakar C. Jalloh (JacTheRealest). Instagram: [@tooeasy001](
 ## What's inside
 
 - **Home** — "Who said it can't be easy?" hero, the Liberian Jue (Independence Day) baby tees, categories, smiley-logo tees and tanks, and a "buy the real one" anti-counterfeit note.
-- **Shop** — search and filter by Tees, Liberian Jue, Caps, Kids. Save favourites with ♡.
+- **Shop** — search and filter by Tees, Liberian Jue, Tanks, Caps & Bags, Kids. Each card shows how many are left. Save favourites with ♡.
 - **Product** — colour variants, S–3XL size picker showing how many are left in each size, a stock table for every colour × size, and add to bag. Sold-out sizes are blocked and the bag can't exceed stock.
 - **Bag / checkout** — Monrovia delivery zones, Orange Money / MTN MoMo / cash on delivery. The order is sent to the brand as a ready-made WhatsApp message.
 - **Story** — founder, milestones, community work, social links.
