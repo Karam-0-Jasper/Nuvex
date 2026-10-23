@@ -47,3 +47,10 @@ export const PAYMENT_METHODS = [
   { id: "momo", label: "MTN Mobile Money" },
   { id: "cash", label: "Cash on delivery" },
 ];
+
+// Shop database (Supabase project "too-easy"). The publishable key is safe to ship in the app:
+// row-level security only lets shoppers add orders, and only emails in the admins table can read them.
+export const SUPABASE = {
+  url: "https://hvbtfzytxnmexdqqxuhi.supabase.co",
+  key: "sb_publishable_mG-UohWM80PzAGfC4owIhw_tGEC-yac",
+};
