@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { BRAND, LRD_PER_USD, DELIVERY_ZONES, PAYMENT_METHODS } from "./config.js";
+import { BRAND, LRD_PER_USD, DELIVERY_ZONES, DELIVERY_HOURS, TIME_SLOTS, PAYMENT_METHODS } from "./config.js";
+import { PLACES, nearestPlace } from "./places.js";
+import DeliveryMap from "./DeliveryMap.jsx";
 import { CATEGORIES, PRODUCTS, LOOKBOOK, LOW_STOCK, totalStock } from "./products.js";
 
 function useStored(key, initial) {
@@ -36,6 +38,7 @@ export default function App() {
   const [currency, setCurrency] = useStored("te-currency", "USD");
   const [bag, setBag] = useStored("te-bag-v2", []);
   const [saved, setSaved] = useStored("te-saved", []);
+  const [orders, setOrders] = useStored("te-orders", []);
   const [toast, setToast] = useState("");
 
   useEffect(() => { window.scrollTo(0, 0); }, [tab, productId]);
@@ -64,6 +67,10 @@ export default function App() {
       return [...b, { id, size, qty: 1 }];
     });
     setToast("Added to bag");
+  };
+  const deliverNow = (id, size) => {
+    if (!bag.some((l) => l.id === id && l.size === size)) addToBag(id, size);
+    setTab("bag");
   };
   const toggleSaved = (id) =>
     setSaved((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -94,7 +101,7 @@ export default function App() {
         )}
         {tab === "product" && findProduct(productId) && (
           <Product
-            product={findProduct(productId)} price={price} addToBag={addToBag}
+            product={findProduct(productId)} price={price} addToBag={addToBag} deliverNow={deliverNow}
             saved={saved.includes(productId)} toggleSaved={() => toggleSaved(productId)}
             back={() => setTab("shop")} openProduct={openProduct}
           />
@@ -102,7 +109,7 @@ export default function App() {
         {tab === "saved" && (
           <Saved price={price} saved={saved} openProduct={openProduct} toggleSaved={toggleSaved} goShop={goShop} />
         )}
-        {tab === "bag" && <Bag bag={bag} setBag={setBag} price={price} currency={currency} goShop={goShop} />}
+        {tab === "bag" && <Bag bag={bag} setBag={setBag} price={price} currency={currency} goShop={goShop} orders={orders} setOrders={setOrders} />}
         {tab === "story" && <Story goShop={goShop} />}
       </main>
 
@@ -138,7 +145,7 @@ function ProductCard({ product, price, onOpen, saved, onSave }) {
   return (
     <div className="card">
       <button className="card-img" onClick={onOpen}>
-        {product.views && <span className="badge">Front + back</span>}
+        {product.badge && <span className="badge">{product.badge}</span>}
         <Thumb product={product} />
       </button>
       {onSave && (
@@ -167,6 +174,8 @@ function Home({ price, openProduct, goShop }) {
   const smiley = PRODUCTS.filter((p) => p.category === "smiley");
   const raglans = PRODUCTS.filter((p) => p.category === "raglan");
   const bags = PRODUCTS.filter((p) => p.category === "bags");
+  const drops = PRODUCTS.filter((p) => p.category === "drops");
+  const caps = PRODUCTS.filter((p) => p.category === "caps");
   const row = (list) => (
     <div className="row-scroll">
       {list.map((p) => <ProductCard key={p.id} product={p} price={price} onOpen={() => openProduct(p.id)} />)}
@@ -180,8 +189,17 @@ function Home({ price, openProduct, goShop }) {
         <p className="hero-sub">Liberia's own streetwear. Made in Monrovia, worn wherever Liberians are.</p>
         <div className="hero-ctas">
           <button className="btn primary" onClick={() => goShop("all")}>Shop now</button>
-          <button className="btn ghost" onClick={() => goShop("graphic")}>New graphics</button>
+          <button className="btn ghost" onClick={() => goShop("drops")}>New drops</button>
         </div>
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2>New Drops</h2>
+          <button className="link" onClick={() => goShop("drops")}>See all</button>
+        </div>
+        <p className="muted">The Star T and the Plate T, straight from the campaign shoots.</p>
+        {row(drops)}
       </section>
 
       <section className="section">
@@ -223,6 +241,15 @@ function Home({ price, openProduct, goShop }) {
           <button className="link" onClick={() => goShop("raglan")}>See all</button>
         </div>
         {row(raglans)}
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Caps</h2>
+          <button className="link" onClick={() => goShop("caps")}>See all</button>
+        </div>
+        <p className="muted">Washed dad caps with the oval logo or the smiley. {price(10)} each.</p>
+        {row(caps)}
       </section>
 
       <section className="section">
@@ -290,7 +317,7 @@ function Shop({ price, category, setCategory, openProduct, saved, toggleSaved })
   );
 }
 
-function Product({ product, price, addToBag, saved, toggleSaved, back, openProduct }) {
+function Product({ product, price, addToBag, deliverNow, saved, toggleSaved, back, openProduct }) {
   const onlySize = product.sizes.length === 1 && product.stock[product.sizes[0]] > 0 ? product.sizes[0] : "";
   const [size, setSize] = useState(onlySize);
   const [warn, setWarn] = useState(false);
@@ -305,6 +332,10 @@ function Product({ product, price, addToBag, saved, toggleSaved, back, openProdu
   const add = () => {
     if (!size) { setWarn(true); return; }
     addToBag(product.id, size);
+  };
+  const orderDelivery = () => {
+    if (!size) { setWarn(true); return; }
+    deliverNow(product.id, size);
   };
 
   return (
@@ -400,7 +431,10 @@ function Product({ product, price, addToBag, saved, toggleSaved, back, openProdu
             {saved ? "♥" : "♡"}
           </button>
         </div>
-        <p className="muted small">Delivery across Monrovia · Orange Money, MTN MoMo or cash</p>
+        {!soldOut && (
+          <button className="btn dark wide" onClick={orderDelivery}>🛵 Order for delivery</button>
+        )}
+        <p className="muted small">Delivery across Monrovia, at the day and time you choose · Orange Money, MTN MoMo or cash</p>
       </div>
 
       {related.length > 0 && (
@@ -441,13 +475,36 @@ function Saved({ price, saved, openProduct, toggleSaved, goShop }) {
   );
 }
 
-function Bag({ bag, setBag, price, currency, goShop }) {
-  const [form, setForm] = useState({ name: "", phone: "", zone: "central", address: "", pay: "orange", note: "" });
+const pad = (n) => String(n).padStart(2, "0");
+const isoDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const whenLabel = (date, time) =>
+  new Date(`${date}T${time}`).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+
+// Returns an error message, or "" when the requested delivery time works.
+function checkWhen(date, time) {
+  if (!date || !time) return "Pick the day and time you need it.";
+  const when = new Date(`${date}T${time}`);
+  const [h, m] = time.split(":").map(Number);
+  const { open, close, leadHours, maxDaysAhead } = DELIVERY_HOURS;
+  if (h < open || h + m / 60 > close) return `Deliveries run ${open}:00 AM – ${close - 12}:00 PM.`;
+  if (when < new Date(Date.now() + leadHours * 3600e3)) return `Give the rider at least ${leadHours} hours — pick a later time.`;
+  if (when > new Date(Date.now() + maxDaysAhead * 86400e3)) return `You can book up to ${maxDaysAhead} days ahead.`;
+  return "";
+}
+
+function Bag({ bag, setBag, price, currency, goShop, orders, setOrders }) {
+  const today = isoDate(new Date());
+  const [form, setForm] = useState({ name: "", phone: "", mode: "delivery", landmark: "", pay: "orange", note: "", date: today, time: "" });
+  const [spot, setSpot] = useState(null);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
+  const [confirmed, setConfirmed] = useState(null);
   const lines = bag.map((l) => ({ ...l, product: findProduct(l.id) })).filter((l) => l.product);
   const subtotal = lines.reduce((s, l) => s + l.product.price * l.qty, 0);
-  const zone = DELIVERY_ZONES.find((z) => z.id === form.zone);
-  const total = subtotal + zone.fee;
+  const delivering = form.mode === "delivery";
+  const zone = DELIVERY_ZONES.find((z) => z.id === (delivering ? spot?.place.zone : "pickup"));
+  const quoted = zone?.id === "outside";
+  const total = subtotal + (zone?.fee ?? 0);
 
   const setQty = (line, qty) => {
     const { product, size } = line;
@@ -457,32 +514,72 @@ function Bag({ bag, setBag, price, currency, goShop }) {
     setBag((b) => (qty <= 0 ? b.filter((l) => !(l.id === line.id && l.size === size))
       : b.map((l) => (l.id === line.id && l.size === size ? { ...l, qty } : l))));
   };
-  const field = (k) => ({ value: form[k], onChange: (e) => setForm({ ...form, [k]: e.target.value }) });
-
-  const sendOrder = () => {
-    if (!form.name.trim() || !form.phone.trim()) { setError("Add your name and phone so we can reach you."); return; }
-    if (form.zone !== "pickup" && !form.address.trim()) { setError("Add a delivery address or landmark."); return; }
-    if (/^2310+$/.test(BRAND.whatsapp)) { setError("The shop's WhatsApp number isn't set up yet (see src/config.js)."); return; }
+  const field = (k) => ({ value: form[k], onChange: (e) => { setForm({ ...form, [k]: e.target.value }); setError(""); } });
+  const choosePlace = (name) => {
+    const p = PLACES.find((x) => x.name === name);
+    setSpot(p ? { lat: p.lat, lng: p.lng, place: p, exact: false } : null);
     setError("");
-    const orderNo = `TE-${Date.now().toString(36).toUpperCase().slice(-6)}`;
-    const pay = PAYMENT_METHODS.find((p) => p.id === form.pay).label;
-    const msg = [
-      `Hi Too Easy! New order ${orderNo}`,
-      "",
-      ...lines.map((l) => `• ${l.qty}× ${l.product.name} (${l.product.color}, ${l.size}) — ${price(l.product.price * l.qty)}`),
-      "",
-      `Subtotal: ${price(subtotal)}`,
-      `Delivery: ${zone.label}${zone.fee ? ` — ${price(zone.fee)}` : ""}`,
-      `Total: ${price(total)} (${currency})`,
-      "",
-      `Name: ${form.name}`,
-      `Phone: ${form.phone}`,
-      form.zone !== "pickup" ? `Address: ${form.address}` : "Pickup",
-      `Payment: ${pay}`,
-      form.note ? `Note: ${form.note}` : null,
-    ].filter((x) => x !== null).join("\n");
-    window.open(`https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
   };
+  const locateMe = () => {
+    if (!navigator.geolocation) { setError("This phone can't share its location. Tap the map instead."); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocating(false); setError("");
+        const point = [coords.latitude, coords.longitude];
+        setSpot({ lat: point[0], lng: point[1], place: nearestPlace(point), exact: true });
+      },
+      () => { setLocating(false); setError("Couldn't get your location. Tap your spot on the map instead."); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  const placeOrder = () => {
+    if (!form.name.trim() || !form.phone.trim()) { setError("Add your name and phone so the rider can reach you."); return; }
+    if (delivering && !spot) { setError("Show us where to deliver: tap the map or pick your area."); return; }
+    if (delivering && !form.landmark.trim()) { setError("Add a landmark so the rider can find you (e.g. house colour, nearby shop)."); return; }
+    const whenError = checkWhen(form.date, form.time);
+    if (whenError) { setError(whenError); return; }
+    setError("");
+    const order = {
+      no: `TE-${Date.now().toString(36).toUpperCase().slice(-6)}`,
+      placedAt: Date.now(),
+      items: lines.map((l) => ({ name: l.product.name, color: l.product.color, size: l.size, qty: l.qty, price: l.product.price, thumb: l.product.images[0].thumb })),
+      subtotal, fee: zone.fee, quoted, total, currency,
+      mode: form.mode, when: whenLabel(form.date, form.time),
+      spot: delivering ? { lat: spot.lat, lng: spot.lng, area: spot.place.far ? `Near ${spot.place.name}` : spot.place.name, zone: zone.label, exact: spot.exact } : null,
+      landmark: form.landmark, name: form.name, phone: form.phone,
+      pay: PAYMENT_METHODS.find((p) => p.id === form.pay).label, note: form.note,
+      sample: /^2310+$/.test(BRAND.whatsapp),
+    };
+    if (!order.sample) {
+      const msg = [
+        `Hi Too Easy! New order ${order.no}`,
+        "",
+        ...order.items.map((i) => `• ${i.qty}× ${i.name} (${i.color}, ${i.size}) — ${price(i.price * i.qty)}`),
+        "",
+        `Subtotal: ${price(subtotal)}`,
+        delivering ? `Delivery: ${zone.label}${quoted ? " — please quote" : ` — ${price(zone.fee)}`}` : "Pickup",
+        `Total: ${price(total)} (${currency})${quoted ? " + delivery" : ""}`,
+        "",
+        `${delivering ? "Deliver" : "Pick up"}: ${order.when}`,
+        delivering ? `Area: ${order.spot.area}` : null,
+        delivering ? `Map: https://maps.google.com/?q=${spot.lat.toFixed(5)},${spot.lng.toFixed(5)}` : null,
+        delivering ? `Landmark: ${form.landmark}` : null,
+        `Name: ${form.name}`,
+        `Phone: ${form.phone}`,
+        `Payment: ${order.pay}`,
+        form.note ? `Note: ${form.note}` : null,
+      ].filter((x) => x !== null).join("\n");
+      window.open(`https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
+    }
+    setOrders((o) => [order, ...o].slice(0, 20));
+    setBag([]);
+    setConfirmed(order);
+    window.scrollTo(0, 0);
+  };
+
+  if (confirmed) return <OrderConfirmed order={confirmed} price={price} done={() => { setConfirmed(null); goShop(); }} />;
 
   if (lines.length === 0) {
     return (
@@ -492,6 +589,24 @@ function Bag({ bag, setBag, price, currency, goShop }) {
           <p>Your bag is empty. It's too easy to fix that.</p>
           <button className="btn primary" onClick={() => goShop()}>Start shopping</button>
         </div>
+        {orders.length > 0 && (
+          <>
+            <h2>Your deliveries</h2>
+            <ul className="orders">
+              {orders.map((o) => (
+                <li key={o.no} className="order-row">
+                  <img src={o.items[0].thumb} alt="" />
+                  <div>
+                    <b>{o.no}</b>
+                    <span className="muted">{o.mode === "delivery" ? `${o.spot.area} · ${o.when}` : `Pickup · ${o.when}`}</span>
+                    <span className="muted">{o.items.reduce((n, i) => n + i.qty, 0)} item(s) · {price(o.total)}{o.quoted ? " + delivery" : ""}</span>
+                  </div>
+                  <span className="status">{o.sample ? "Sample" : "Sent"}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
     );
   }
@@ -517,20 +632,64 @@ function Bag({ bag, setBag, price, currency, goShop }) {
         ))}
       </ul>
 
-      <h2>Delivery</h2>
+      <h2 id="delivery">How do you want it?</h2>
+      <div className="mode">
+        <button className={delivering ? "on" : ""} onClick={() => setForm({ ...form, mode: "delivery" })}>
+          <b>Delivery</b><span>Rider brings it to you</span>
+        </button>
+        <button className={!delivering ? "on" : ""} onClick={() => setForm({ ...form, mode: "pickup" })}>
+          <b>Pickup</b><span>Free · {BRAND.pickup}</span>
+        </button>
+      </div>
+
+      {delivering && (
+        <>
+          <h3>Where should we deliver?</h3>
+          <p className="muted small">Tap your community on the map, or tap your exact spot.</p>
+          <DeliveryMap value={spot} onPick={(s) => { setSpot(s); setError(""); }} />
+          <div className="map-tools">
+            <select value={spot && !spot.exact ? spot.place.name : ""} onChange={(e) => choosePlace(e.target.value)} aria-label="Choose your area">
+              <option value="">Choose your area…</option>
+              {DELIVERY_ZONES.filter((z) => z.id !== "pickup").map((z) => (
+                <optgroup key={z.id} label={z.label}>
+                  {PLACES.filter((p) => p.zone === z.id).map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <button type="button" className="btn ghost" onClick={locateMe} disabled={locating}>{locating ? "Finding you…" : "📍 Use my location"}</button>
+          </div>
+          {spot && (
+            <div className="spot">
+              <b>{spot.exact ? (spot.place.far ? `Pinned near ${spot.place.name}` : `Pinned in ${spot.place.name}`) : spot.place.name}</b>
+              <span>{zone.label} · {quoted ? "fee quoted on WhatsApp" : `delivery ${price(zone.fee)}`}</span>
+            </div>
+          )}
+          <div className="form">
+            <label>Landmark or directions<input {...field("landmark")} placeholder="e.g. Blue gate behind Total station, 19th St" /></label>
+          </div>
+        </>
+      )}
+
+      <h3>When do you need it?</h3>
+      <div className="form when">
+        <label>Day<input type="date" {...field("date")} min={today} max={isoDate(new Date(Date.now() + DELIVERY_HOURS.maxDaysAhead * 86400e3))} /></label>
+        <label>Time<input type="time" {...field("time")} min={`${pad(DELIVERY_HOURS.open)}:00`} max={`${DELIVERY_HOURS.close}:00`} step="900" /></label>
+      </div>
+      <div className="chips slots">
+        {TIME_SLOTS.map((s) => (
+          <button key={s.label} type="button" className={`chip ${form.time === s.time ? "on" : ""}`} onClick={() => { setForm({ ...form, time: s.time }); setError(""); }}>
+            {s.label} · {new Date(`2000-01-01T${s.time}`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+          </button>
+        ))}
+      </div>
+      {form.date && form.time && !checkWhen(form.date, form.time) && (
+        <p className="when-ok">✓ {delivering ? "Arrives" : "Ready for pickup"} {whenLabel(form.date, form.time)}</p>
+      )}
+
+      <h3>Your details</h3>
       <div className="form">
         <label>Full name<input {...field("name")} autoComplete="name" /></label>
         <label>Phone (WhatsApp)<input {...field("phone")} type="tel" placeholder="077 / 088…" autoComplete="tel" /></label>
-        <label>Area
-          <select {...field("zone")}>
-            {DELIVERY_ZONES.map((z) => (
-              <option key={z.id} value={z.id}>{z.label}{z.fee ? ` — ${price(z.fee)}` : ""}</option>
-            ))}
-          </select>
-        </label>
-        {form.zone !== "pickup" && (
-          <label>Address or landmark<input {...field("address")} placeholder="e.g. Behind Total station, 19th St Sinkor" /></label>
-        )}
         <label>Payment
           <div className="pay">
             {PAYMENT_METHODS.map((p) => (
@@ -540,17 +699,49 @@ function Bag({ bag, setBag, price, currency, goShop }) {
             ))}
           </div>
         </label>
-        <label>Note (optional)<input {...field("note")} placeholder="Gift, timing, anything else" /></label>
+        <label>Note (optional)<input {...field("note")} placeholder="Gift, call before arriving, anything else" /></label>
       </div>
 
       <div className="totals">
         <div><span>Subtotal</span><span>{price(subtotal)}</span></div>
-        <div><span>Delivery</span><span>{zone.fee ? price(zone.fee) : zone.id === "outside" ? "Quoted" : "Free"}</span></div>
-        <div className="grand"><span>Total</span><span>{price(total)}</span></div>
+        <div><span>Delivery</span><span>{!delivering ? "Free (pickup)" : !zone ? "Pick a spot" : quoted ? "Quoted" : price(zone.fee)}</span></div>
+        <div className="grand"><span>Total</span><span>{price(total)}{quoted ? " + delivery" : ""}</span></div>
       </div>
-      {error && <p className="error">{error}</p>}
-      <button className="btn whatsapp wide" onClick={sendOrder}>Send order on WhatsApp</button>
-      <p className="muted small center">Your order opens in WhatsApp. The team confirms stock and payment there.</p>
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="btn primary wide" onClick={placeOrder}>{delivering ? "Book delivery" : "Book pickup"}</button>
+      <p className="muted small center">
+        {/^2310+$/.test(BRAND.whatsapp)
+          ? "Sample mode: orders are saved on this phone only until the shop's WhatsApp number is added."
+          : "Your order opens in WhatsApp. The team confirms stock and payment there."}
+      </p>
+    </section>
+  );
+}
+
+function OrderConfirmed({ order, price, done }) {
+  return (
+    <section className="section confirmed">
+      <div className="tick" aria-hidden="true">✓</div>
+      <h1 className="page-title">{order.mode === "delivery" ? "Delivery booked" : "Pickup booked"}</h1>
+      <p className="muted">Order <b>{order.no}</b>{order.sample ? " · sample order (not sent to the shop)" : " · sent to Too Easy on WhatsApp"}</p>
+      <div className="confirm-card">
+        <div><span>When</span><b>{order.when}</b></div>
+        {order.spot && <div><span>Where</span><b>{order.spot.area}</b></div>}
+        {order.spot && <div><span>Landmark</span><b>{order.landmark}</b></div>}
+        <div><span>Payment</span><b>{order.pay}</b></div>
+        <div><span>Total</span><b>{price(order.total)}{order.quoted ? " + delivery" : ""}</b></div>
+      </div>
+      {order.spot && <DeliveryMap value={order.spot} readOnly height={200} />}
+      <ul className="lines">
+        {order.items.map((i) => (
+          <li key={`${i.name}-${i.color}-${i.size}`} className="line">
+            <div className="line-img"><img src={i.thumb} alt="" /></div>
+            <div className="line-info"><b>{i.name}</b><span className="muted">{i.color} · {i.size} · ×{i.qty}</span></div>
+            <b className="line-price">{price(i.price * i.qty)}</b>
+          </li>
+        ))}
+      </ul>
+      <button className="btn primary wide" onClick={done}>Keep shopping</button>
     </section>
   );
 }

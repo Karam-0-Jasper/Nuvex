@@ -1,14 +1,17 @@
 // Product catalog, built from Too Easy's own product photos (public/photos/).
-// TODO before launch: real prices (USD) and real stock counts. The numbers below are samples.
+// Prices (USD) confirmed by the brand: Smiley tees $15, Star T $20, Plate T $25, Trust Your Dopeness $25, caps $10.
+// TODO before launch: confirm the Raglan, Bubble Logo and Tote prices, and real stock counts (samples below).
 // Stock is one number per size, in the order of that product's size list.
 // To add a product: drop a 3:4 photo in public/photos/ (and a 480px copy in public/photos/thumbs/),
 // then add a line below.
 
 export const CATEGORIES = [
   { id: "all", label: "All" },
+  { id: "drops", label: "New Drops" },
   { id: "smiley", label: "Smiley Tees" },
   { id: "raglan", label: "Raglans" },
   { id: "graphic", label: "Graphic Tees" },
+  { id: "caps", label: "Caps" },
   { id: "bags", label: "Bags" },
 ];
 
@@ -16,18 +19,24 @@ export const ADULT_SIZES = ["S", "M", "L", "XL", "XXL", "3XL"];
 const ONE_SIZE = ["One size"];
 
 const FAMILIES = {
-  smiley: { name: "Smiley Logo Tee", category: "smiley", price: 20, sizes: ADULT_SIZES,
+  smiley: { name: "Smiley Logo Tee", category: "smiley", price: 15, sizes: ADULT_SIZES,
     desc: "Classic crew-neck tee with the brushed TOO EASY smiley printed big across the chest." },
-  smileyWhite: { name: "Smiley Tee — White Edition", category: "smiley", price: 20, sizes: ADULT_SIZES,
+  smileyWhite: { name: "Smiley Tee — White Edition", category: "smiley", price: 15, sizes: ADULT_SIZES,
     desc: "Crisp white tee with the smiley logo in a colour of your choice." },
-  smileyBlack: { name: "Smiley Tee — Black Edition", category: "smiley", price: 20, sizes: ADULT_SIZES,
+  smileyBlack: { name: "Smiley Tee — Black Edition", category: "smiley", price: 15, sizes: ADULT_SIZES,
     desc: "Black tee with the smiley logo in a colour of your choice." },
   raglan: { name: "Raglan Smiley Tee", category: "raglan", price: 22, sizes: ADULT_SIZES,
     desc: "Two-tone raglan tee with contrast sleeves and collar, smiley logo on the chest." },
-  bubble: { name: "Bubble Logo Tee", category: "graphic", price: 25, sizes: ADULT_SIZES, views: ["Back", "Front"],
+  bubble: { name: "Bubble Logo Tee", category: "graphic", price: 25, sizes: ADULT_SIZES, views: ["Back", "Front"], badge: "Front + back",
     desc: "Small bubble-letter TOO EASY on the chest and a giant multicolour bubble logo across the back." },
-  dope: { name: "Trust Your Dopeness Tee", category: "graphic", price: 25, sizes: ADULT_SIZES, views: ["Back", "Front"],
+  dope: { name: "Trust Your Dopeness Tee", category: "graphic", price: 25, sizes: ADULT_SIZES, views: ["Back", "Front"], badge: "Front + back",
     desc: "Small \"too· easy\" on the chest and the full \"Trust Your Dopeness\" graffiti piece on the back." },
+  star: { name: "Star T", category: "drops", price: 20, sizes: ADULT_SIZES, views: ["Close-up", "Campaign"], badge: "New",
+    desc: "Panel tee with contrast piping and the oval \"too easy®\" logo on the chest, and a star on the back. From the cinema shoot." },
+  plate: { name: "Plate T", category: "drops", price: 25, sizes: ADULT_SIZES, views: ["Close-up", "Campaign"], badge: "New",
+    desc: "Washed tee with the orange \"LIBERIA TE001\" licence plate printed across the chest. From the TE001 street shoot." },
+  cap: { name: "Too Easy Cap", category: "caps", price: 10, sizes: ONE_SIZE,
+    desc: "Washed cotton dad cap with an adjustable strap, embroidered with the oval \"too easy®\" logo or the smiley." },
   tote: { name: "Utility Tote", category: "bags", price: 30, sizes: ONE_SIZE,
     desc: "Canvas utility tote with two front cargo pockets, top handles, a shoulder strap and the oval \"too easy\" logo." },
 };
@@ -79,6 +88,25 @@ const VARIANTS = [
   ["dope", "dope-pink", "Pink", ["#F7C6DA", "#F2A23A"], ["dope-pink", "dope-pink-2"], [8, 8, 8, 5, 3, 5]],
   ["dope", "dope-white", "White", ["#F7F7F5", "#3E8E4F"], ["dope-white", "dope-white-2"], [1, 2, 6, 2, 7, 1]],
   ["dope", "dope-brown", "Brown", ["#4A3426", "#5FA8E0"], ["dope-brown", "dope-brown-2"], [2, 4, 9, 4, 8, 0]],
+  // Star T (photos from the cinema campaign shoot)
+  ["star", "star-white", "White", ["#F4F4F2", "#222222"], ["star-white", "campaign-cinema-duo"], [3, 5, 4, 2, 1, 0]],
+  ["star", "star-red", "Red", ["#D71920", "#FFFFFF"], ["star-red", "campaign-cinema-duo"], [2, 4, 6, 3, 0, 1]],
+  ["star", "star-black", "Black", ["#151515", "#FFFFFF"], ["star-black", "campaign-cinema-red"], [4, 6, 2, 5, 2, 1]],
+  ["star", "star-grey", "Grey", ["#C9C9C9", "#151515"], ["star-grey", "campaign-cinema-red"], [1, 3, 5, 4, 3, 2]],
+  // Plate T (photos from the TE001 street shoot)
+  ["plate", "plate-grey", "Grey Wash", ["#6E7378", "#F26B21"], ["plate-grey", "campaign-plates-crew"], [2, 4, 3, 5, 2, 0]],
+  ["plate", "plate-cream", "Cream Wash", ["#E6DDCF", "#F26B21"], ["plate-cream", "campaign-plates-crew"], [3, 6, 4, 2, 1, 1]],
+  ["plate", "plate-pink", "Pink Wash", ["#EBD3D0", "#F26B21"], ["plate-pink", "campaign-plates-portrait"], [5, 3, 0, 2, 4, 1]],
+  // Too Easy Cap
+  ["cap", "cap-black-smiley", "Black / Smiley", ["#151515", "#3BB0E0"], ["cap-black-smiley"], [12]],
+  ["cap", "cap-red-smiley", "Red / Smiley", ["#D3232B", "#FFFFFF"], ["cap-red-smiley"], [7]],
+  ["cap", "cap-maroon-smiley", "Maroon / Smiley", ["#8A1F33", "#FFFFFF"], ["cap-maroon-smiley"], [5]],
+  ["cap", "cap-lavender-smiley", "Lavender / Smiley", ["#A99BEA", "#151515"], ["cap-lavender-smiley"], [3]],
+  ["cap", "cap-pink-smiley", "Pink / Smiley", ["#F0877F", "#151515"], ["cap-pink-smiley"], [6]],
+  ["cap", "cap-red-oval", "Red / Oval Logo", ["#C8232B", "#FFFFFF"], ["cap-red-oval"], [9]],
+  ["cap", "cap-maroon-oval", "Maroon / Oval Logo", ["#8A1F33", "#FFFFFF"], ["cap-maroon-oval"], [4]],
+  ["cap", "cap-brown-oval", "Brown / Oval Logo", ["#4E4038", "#FFFFFF"], ["cap-brown-oval"], [8]],
+  ["cap", "cap-yellow-oval", "Yellow / Oval Logo", ["#E2C534", "#151515"], ["cap-yellow-oval"], [2]],
   // Utility Tote
   ["tote", "tote-cream-red", "Cream / Red", ["#EFE9DC", "#B0222A"], ["tote-cream-red"], [8]],
   ["tote", "tote-tan", "Tan / Rust", ["#C9A06B", "#A2532A"], ["tote-tan", "tote-tan-2"], [4]],
