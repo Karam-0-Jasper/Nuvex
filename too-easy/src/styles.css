@@ -36,17 +36,14 @@ h1, h2, h3, .logo, .btn, .page-title { font-family: "Archivo Black", "Arial Blac
 
 .hero {
   position: relative; overflow: hidden;
-  margin: 16px; padding: 40px 22px 28px; border-radius: 22px;
-  background: var(--ink); color: #fff;
+  margin: 16px; padding: 150px 22px 26px; border-radius: 22px;
+  background: var(--ink) center 30% / cover no-repeat; color: #fff;
 }
-.hero-flag { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0.16; }
-.hero-flag i { flex: 1; }
-.hero-flag i:nth-child(odd) { background: var(--red); }
-.hero-flag::before {
-  content: "★"; position: absolute; top: 0; left: 0; width: 44%; height: 46%;
-  background: var(--navy); color: #fff; display: grid; place-items: center; font-size: 64px; z-index: 1;
+.hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.55) 45%, rgba(0, 0, 0, 0.85) 100%);
 }
-.hero > *:not(.hero-flag) { position: relative; }
+.hero > * { position: relative; }
 .eyebrow { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.75; margin: 0 0 10px; }
 .hero h1 { font-size: clamp(38px, 11vw, 54px); line-height: 0.98; margin: 0 0 14px; }
 .hero h1 em { font-style: normal; color: #ff3b5c; }
@@ -82,10 +79,12 @@ h1, h2, h3, .logo, .btn, .page-title { font-family: "Archivo Black", "Arial Blac
 
 .card { position: relative; display: flex; flex-direction: column; text-align: left; }
 .card-img, .product-img, .cat, .line-img {
-  position: relative; display: block; width: 100%; background: var(--card);
-  border: 1px solid var(--line); border-radius: var(--radius); padding: 10px;
+  position: relative; display: block; width: 100%; background: #e9ecee; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 0;
 }
-.card-img svg, .product-img svg, .cat svg, .line-img svg { display: block; width: 100%; height: auto; }
+.card-img img, .product-img img, .cat img, .line-img img {
+  display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover;
+}
 .badge {
   position: absolute; top: 8px; left: 8px; z-index: 1;
   background: var(--ink); color: #fff; font-size: 10px; font-weight: 700;
@@ -101,8 +100,9 @@ h1, h2, h3, .logo, .btn, .page-title { font-family: "Archivo Black", "Arial Blac
 .card-color { font-size: 13px; color: var(--muted); }
 .card-price { font-weight: 700; font-size: 14px; margin-top: 2px; }
 
-.cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.cat { padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; }
+.cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.cat { display: flex; flex-direction: column; align-items: center; font-size: 12px; font-weight: 700; }
+.cat span { padding: 7px 4px 8px; }
 
 .real { margin: 10px 16px 0; padding: 18px; background: var(--navy); color: #fff; border-radius: var(--radius); }
 .real h2 { margin-top: 0; }
@@ -122,7 +122,7 @@ h1, h2, h3, .logo, .btn, .page-title { font-family: "Archivo Black", "Arial Blac
 
 .product { padding-bottom: 10px; }
 .product .back { display: inline-block; margin: 14px 16px 10px; }
-.product-img { width: auto; margin: 0 16px; padding: 24px; }
+.product-img { width: auto; margin: 0 16px; }
 .product-body { padding: 4px 16px 0; }
 .product-title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .product-title h1 { font-size: 26px; margin: 16px 0 2px; line-height: 1.1; }
@@ -132,8 +132,17 @@ h1, h2, h3, .logo, .btn, .page-title { font-family: "Archivo Black", "Arial Blac
 .product-body h3 { font-size: 14px; letter-spacing: 0.5px; margin: 18px 0 8px; }
 .warn { color: var(--red); font-family: "Inter", sans-serif; font-weight: 600; }
 .swatches, .sizes { display: flex; gap: 8px; flex-wrap: wrap; }
-.swatch { display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 13px; }
-.swatch i { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); }
+.dot { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #cfccc4; box-shadow: inset 0 0 0 2px #fff; }
+.dot.on { outline: 2px solid var(--ink); outline-offset: 2px; }
+.dot.out { opacity: 0.35; }
+.views { display: flex; gap: 10px; margin: 10px 16px 0; }
+.views button { width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.views img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; border: 2px solid transparent; }
+.views button.on { color: var(--ink); }
+.views button.on img { border-color: var(--ink); }
+.lookbook { display: grid; grid-auto-flow: column; grid-auto-columns: 78%; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; }
+.lookbook img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--radius); scroll-snap-align: start; }
+.story-img { width: 100%; border-radius: var(--radius); margin: 18px 0 4px; display: block; }
 .size { min-width: 52px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-weight: 600; font-size: 14px; }
 .size.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .product-actions { display: flex; gap: 10px; margin: 22px 0 10px; }

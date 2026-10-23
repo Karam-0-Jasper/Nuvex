@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BRAND, LRD_PER_USD, DELIVERY_ZONES, PAYMENT_METHODS } from "./config.js";
-import { CATEGORIES, PRODUCTS, LOW_STOCK, totalStock } from "./products.js";
-import ProductArt from "./ProductArt.jsx";
+import { CATEGORIES, PRODUCTS, LOOKBOOK, LOW_STOCK, totalStock } from "./products.js";
 
 function useStored(key, initial) {
   const [value, setValue] = useState(() => {
@@ -24,6 +23,11 @@ function formatPrice(usd, currency) {
 }
 
 const findProduct = (id) => PRODUCTS.find((p) => p.id === id);
+const swatchBg = ([body, accent]) => `linear-gradient(135deg, ${body} 0 55%, ${accent} 55% 100%)`;
+
+function Thumb({ product }) {
+  return <img src={product.images[0].thumb} alt={`${product.name}, ${product.color}`} loading="lazy" width="480" height="640" />;
+}
 
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -134,8 +138,8 @@ function ProductCard({ product, price, onOpen, saved, onSave }) {
   return (
     <div className="card">
       <button className="card-img" onClick={onOpen}>
-        {product.badge && <span className="badge">{product.badge}</span>}
-        <ProductArt product={product} />
+        {product.views && <span className="badge">Front + back</span>}
+        <Thumb product={product} />
       </button>
       {onSave && (
         <button className={`heart ${saved ? "on" : ""}`} onClick={onSave} aria-label={saved ? "Remove from saved" : "Save"}>
@@ -159,34 +163,43 @@ function StockLine({ left }) {
 }
 
 function Home({ price, openProduct, goShop }) {
-  const featured = PRODUCTS.filter((p) => p.category === "jue").slice(0, 4);
-  const best = PRODUCTS.filter((p) => p.category === "tees" || p.category === "tanks").slice(0, 4);
+  const graphic = PRODUCTS.filter((p) => p.category === "graphic");
+  const smiley = PRODUCTS.filter((p) => p.category === "smiley");
+  const raglans = PRODUCTS.filter((p) => p.category === "raglan");
+  const bags = PRODUCTS.filter((p) => p.category === "bags");
+  const row = (list) => (
+    <div className="row-scroll">
+      {list.map((p) => <ProductCard key={p.id} product={p} price={price} onOpen={() => openProduct(p.id)} />)}
+    </div>
+  );
   return (
     <>
-      <section className="hero">
-        <div className="hero-flag" aria-hidden="true">
-          {Array.from({ length: 11 }, (_, i) => <i key={i} />)}
-        </div>
+      <section className="hero" style={{ backgroundImage: `url(${LOOKBOOK[0]})` }}>
         <p className="eyebrow">{BRAND.city} · Since {BRAND.founded}</p>
         <h1>Who said it can't be <em>easy?</em></h1>
         <p className="hero-sub">Liberia's own streetwear. Made in Monrovia, worn wherever Liberians are.</p>
         <div className="hero-ctas">
-          <button className="btn primary" onClick={() => goShop("all")}>Shop the drop</button>
-          <button className="btn ghost" onClick={() => goShop("jue")}>Liberian Jue</button>
+          <button className="btn primary" onClick={() => goShop("all")}>Shop now</button>
+          <button className="btn ghost" onClick={() => goShop("graphic")}>New graphics</button>
         </div>
       </section>
 
       <section className="section">
         <div className="section-head">
-          <h2>Liberian Jue Collection</h2>
-          <button className="link" onClick={() => goShop("jue")}>See all</button>
+          <h2>Graphic Tees</h2>
+          <button className="link" onClick={() => goShop("graphic")}>See all</button>
         </div>
-        <p className="muted">The Independence Day drop. Ringer baby tees in red, navy and black, plus kids' sizes for July 26.</p>
-        <div className="row-scroll">
-          {featured.map((p) => (
-            <ProductCard key={p.id} product={p} price={price} onOpen={() => openProduct(p.id)} />
-          ))}
+        <p className="muted">"Trust Your Dopeness" and the Bubble Logo, with big prints across the back.</p>
+        {row(graphic)}
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Smiley Logo Tee</h2>
+          <button className="link" onClick={() => goShop("smiley")}>See all</button>
         </div>
+        <p className="muted">The signature. {smiley.length} colourways.</p>
+        {row(smiley)}
       </section>
 
       <section className="section">
@@ -196,7 +209,7 @@ function Home({ price, openProduct, goShop }) {
             const sample = PRODUCTS.find((p) => p.category === c.id);
             return (
               <button key={c.id} className="cat" onClick={() => goShop(c.id)}>
-                <ProductArt product={sample} />
+                <Thumb product={sample} />
                 <span>{c.label}</span>
               </button>
             );
@@ -206,13 +219,24 @@ function Home({ price, openProduct, goShop }) {
 
       <section className="section">
         <div className="section-head">
-          <h2>Signature pieces</h2>
-          <button className="link" onClick={() => goShop("tees")}>See all</button>
+          <h2>Raglans</h2>
+          <button className="link" onClick={() => goShop("raglan")}>See all</button>
         </div>
-        <div className="grid">
-          {best.map((p) => (
-            <ProductCard key={p.id} product={p} price={price} onOpen={() => openProduct(p.id)} />
-          ))}
+        {row(raglans)}
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Utility Totes</h2>
+          <button className="link" onClick={() => goShop("bags")}>See all</button>
+        </div>
+        {row(bags)}
+      </section>
+
+      <section className="section">
+        <h2>Lookbook</h2>
+        <div className="lookbook">
+          {LOOKBOOK.slice(1).map((src) => <img key={src} src={src} alt="Too Easy lookbook" loading="lazy" />)}
         </div>
       </section>
 
@@ -243,7 +267,7 @@ function Shop({ price, category, setCategory, openProduct, saved, toggleSaved })
     <section className="section">
       <h1 className="page-title">Shop</h1>
       <input
-        className="search" type="search" placeholder="Search tees, tanks, Jue…"
+        className="search" type="search" placeholder="Search colours, tees, totes…"
         value={query} onChange={(e) => setQuery(e.target.value)}
       />
       <div className="chips">
@@ -270,10 +294,10 @@ function Product({ product, price, addToBag, saved, toggleSaved, back, openProdu
   const onlySize = product.sizes.length === 1 && product.stock[product.sizes[0]] > 0 ? product.sizes[0] : "";
   const [size, setSize] = useState(onlySize);
   const [warn, setWarn] = useState(false);
-  useEffect(() => { setSize(onlySize); setWarn(false); }, [product.id]);
+  const [view, setView] = useState(0);
+  useEffect(() => { setSize(onlySize); setWarn(false); setView(0); }, [product.id]);
 
   const family = PRODUCTS.filter((p) => p.name === product.name);
-  const variants = family.filter((p) => p.id !== product.id);
   const soldOut = totalStock(product) === 0;
   const left = size ? product.stock[size] : 0;
   const related = PRODUCTS.filter((p) => p.category === product.category && p.name !== product.name).slice(0, 4);
@@ -287,9 +311,19 @@ function Product({ product, price, addToBag, saved, toggleSaved, back, openProdu
     <section className="product">
       <button className="link back" onClick={back}>← Back to shop</button>
       <div className="product-img">
-        {product.badge && <span className="badge">{product.badge}</span>}
-        <ProductArt product={product} />
+        <img src={product.images[view].src} alt={`${product.name}, ${product.color}${product.images[view].label ? `, ${product.images[view].label.toLowerCase()}` : ""}`} />
+        {product.images[view].label && <span className="badge">{product.images[view].label}</span>}
       </div>
+      {product.images.length > 1 && (
+        <div className="views">
+          {product.images.map((im, i) => (
+            <button key={im.src} className={i === view ? "on" : ""} onClick={() => setView(i)}>
+              <img src={im.thumb} alt="" />
+              <span>{im.label ?? `Photo ${i + 1}`}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="product-body">
         <div className="product-title">
           <div>
@@ -300,15 +334,17 @@ function Product({ product, price, addToBag, saved, toggleSaved, back, openProdu
         </div>
         <p>{product.desc}</p>
 
-        {variants.length > 0 && (
+        {family.length > 1 && (
           <>
-            <h3>Other colours</h3>
+            <h3>Colour: <span className="muted">{product.color}</span></h3>
             <div className="swatches">
-              {variants.map((v) => (
-                <button key={v.id} className="swatch" onClick={() => openProduct(v.id)} aria-label={v.color}>
-                  <i style={{ background: v.art.base }} />
-                  {v.color}
-                </button>
+              {family.map((v) => (
+                <button
+                  key={v.id} title={v.color} aria-label={v.color}
+                  className={`dot ${v.id === product.id ? "on" : ""} ${totalStock(v) === 0 ? "out" : ""}`}
+                  style={{ background: swatchBg(v.swatch) }}
+                  onClick={() => openProduct(v.id)}
+                />
               ))}
             </div>
           </>
@@ -346,7 +382,7 @@ function Product({ product, price, addToBag, saved, toggleSaved, back, openProdu
             <tbody>
               {family.map((v) => (
                 <tr key={v.id} className={v.id === product.id ? "current" : ""} onClick={() => openProduct(v.id)}>
-                  <td><i style={{ background: v.art.base }} />{v.color}</td>
+                  <td><i style={{ background: swatchBg(v.swatch) }} />{v.color}</td>
                   {v.sizes.map((s) => {
                     const n = v.stock[s] ?? 0;
                     return <td key={s} className={!n ? "out" : n <= LOW_STOCK ? "low" : ""}>{n || "–"}</td>;
@@ -466,7 +502,7 @@ function Bag({ bag, setBag, price, currency, goShop }) {
       <ul className="lines">
         {lines.map((l) => (
           <li key={`${l.id}-${l.size}`} className="line">
-            <div className="line-img"><ProductArt product={l.product} /></div>
+            <div className="line-img"><Thumb product={l.product} /></div>
             <div className="line-info">
               <b>{l.product.name}</b>
               <span className="muted">{l.product.color} · {l.size}</span>
@@ -545,6 +581,7 @@ function Story({ goShop }) {
         <li><b>Mar 2025</b> International Women's Day: cash, shirts and caps given to women street vendors across Monrovia.</li>
         <li><b>Jul 2025</b> Liberian Jue collection for Independence Day, plus the Jue Party the night before July 26.</li>
       </ol>
+      <img className="story-img" src={LOOKBOOK[3]} alt="Too Easy campaign shoot" loading="lazy" />
 
       <h2>Giving back</h2>
       <p>

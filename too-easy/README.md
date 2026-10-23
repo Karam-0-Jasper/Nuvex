@@ -5,9 +5,9 @@ founded in 2023 by Abubakar C. Jalloh (JacTheRealest). Instagram: [@tooeasy001](
 
 ## What's inside
 
-- **Home** — "Who said it can't be easy?" hero, the Liberian Jue (Independence Day) baby tees, categories, smiley-logo tees and tanks, and a "buy the real one" anti-counterfeit note.
-- **Shop** — search and filter by Tees, Liberian Jue, Tanks, Caps & Bags, Kids. Each card shows how many are left. Save favourites with ♡.
-- **Product** — colour variants, S–3XL size picker showing how many are left in each size, a stock table for every colour × size, and add to bag. Sold-out sizes are blocked and the bag can't exceed stock.
+- **Home** — "Who said it can't be easy?" hero on the TE001 campaign photo, Graphic Tees, the Smiley Logo Tee in 22 colourways, categories, Raglans, Utility Totes, a lookbook, and a "buy the real one" anti-counterfeit note.
+- **Shop** — 44 colourways across 7 products, all shown with the brand's own photos. Search and filter by Smiley Tees, Raglans, Graphic Tees, Bags. Each card shows how many are left. Save favourites with ♡.
+- **Product** — front/back photos for the graphic tees, colour dots, S–3XL size picker showing how many are left in each size, a stock table for every colour × size, and add to bag. Sold-out sizes are blocked and the bag can't exceed stock.
 - **Bag / checkout** — Monrovia delivery zones, Orange Money / MTN MoMo / cash on delivery. The order is sent to the brand as a ready-made WhatsApp message.
 - **Story** — founder, milestones, community work, social links.
 - **USD ⇄ LRD** price toggle. Bag, saved items and currency are remembered on the phone.
@@ -24,7 +24,7 @@ Nothing below was public on the brand's pages, so these are placeholders:
 | Exchange rate | `src/config.js` → `LRD_PER_USD` |
 | Delivery zones & fees | `src/config.js` → `DELIVERY_ZONES` |
 | Pickup address | `src/config.js` → `pickup` |
-| Real product photos | the drawings follow the real designs; to use the brand's own photos, put files in `public/photos/` and add `image: "/photos/name.jpg"` to a product |
+| New product photos | put a 3:4 photo in `public/photos/` and a 480px-wide copy in `public/photos/thumbs/`, then add a line to `VARIANTS` in `src/products.js` |
 | Add / remove products | `src/products.js` |
 
 ## Run it
