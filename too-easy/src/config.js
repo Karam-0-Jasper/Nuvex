@@ -32,6 +32,16 @@ export const DELIVERY_ZONES = [
   { id: "outside", label: "Outside Monrovia (quote on WhatsApp)", fee: 0 },
 ];
 
+// Hours the rider delivers, and how much notice a same-day order needs.
+export const DELIVERY_HOURS = { open: 8, close: 20, leadHours: 2, maxDaysAhead: 30 };
+
+export const TIME_SLOTS = [
+  { label: "Morning", time: "10:00" },
+  { label: "Midday", time: "12:30" },
+  { label: "Afternoon", time: "15:00" },
+  { label: "Evening", time: "18:00" },
+];
+
 export const PAYMENT_METHODS = [
   { id: "orange", label: "Orange Money" },
   { id: "momo", label: "MTN Mobile Money" },
