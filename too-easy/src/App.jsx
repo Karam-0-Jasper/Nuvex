@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BRAND, LRD_PER_USD, DELIVERY_ZONES, PAYMENT_METHODS } from "./config.js";
-import { CATEGORIES, PRODUCTS } from "./products.js";
+import { CATEGORIES, PRODUCTS, LOW_STOCK, totalStock } from "./products.js";
 import ProductArt from "./ProductArt.jsx";
 
 function useStored(key, initial) {
@@ -30,7 +30,7 @@ export default function App() {
   const [productId, setProductId] = useState(null);
   const [category, setCategory] = useState("all");
   const [currency, setCurrency] = useStored("te-currency", "USD");
-  const [bag, setBag] = useStored("te-bag", []);
+  const [bag, setBag] = useStored("te-bag-v2", []);
   const [saved, setSaved] = useStored("te-saved", []);
   const [toast, setToast] = useState("");
 
@@ -48,6 +48,12 @@ export default function App() {
   const goShop = (cat = "all") => { setCategory(cat); setTab("shop"); };
 
   const addToBag = (id, size) => {
+    const left = findProduct(id).stock[size] ?? 0;
+    const inBag = bag.find((l) => l.id === id && l.size === size)?.qty ?? 0;
+    if (inBag >= left) {
+      setToast(left ? `Only ${left} left in ${size} — all in your bag` : `${size} is sold out`);
+      return;
+    }
     setBag((b) => {
       const hit = b.find((l) => l.id === id && l.size === size);
       if (hit) return b.map((l) => (l === hit ? { ...l, qty: l.qty + 1 } : l));
@@ -140,14 +146,21 @@ function ProductCard({ product, price, onOpen, saved, onSave }) {
         <span className="card-name">{product.name}</span>
         <span className="card-color">{product.color}</span>
         <span className="card-price">{price(product.price)}</span>
+        <StockLine left={totalStock(product)} />
       </button>
     </div>
   );
 }
 
+function StockLine({ left }) {
+  if (left === 0) return <span className="card-stock out">Sold out</span>;
+  if (left <= LOW_STOCK * 3) return <span className="card-stock low">Only {left} left</span>;
+  return <span className="card-stock">{left} in stock</span>;
+}
+
 function Home({ price, openProduct, goShop }) {
   const featured = PRODUCTS.filter((p) => p.category === "jue").slice(0, 4);
-  const best = PRODUCTS.filter((p) => p.category === "tees" || p.category === "caps").slice(0, 4);
+  const best = PRODUCTS.filter((p) => p.category === "tees" || p.category === "tanks").slice(0, 4);
   return (
     <>
       <section className="hero">
@@ -168,7 +181,7 @@ function Home({ price, openProduct, goShop }) {
           <h2>Liberian Jue Collection</h2>
           <button className="link" onClick={() => goShop("jue")}>See all</button>
         </div>
-        <p className="muted">The Independence Day drop. Crop tops, matching sets, and kids' fits for July 26.</p>
+        <p className="muted">The Independence Day drop. Ringer baby tees in red, navy and black, plus kids' sizes for July 26.</p>
         <div className="row-scroll">
           {featured.map((p) => (
             <ProductCard key={p.id} product={p} price={price} onOpen={() => openProduct(p.id)} />
@@ -230,7 +243,7 @@ function Shop({ price, category, setCategory, openProduct, saved, toggleSaved })
     <section className="section">
       <h1 className="page-title">Shop</h1>
       <input
-        className="search" type="search" placeholder="Search tees, caps, Jue…"
+        className="search" type="search" placeholder="Search tees, tanks, Jue…"
         value={query} onChange={(e) => setQuery(e.target.value)}
       />
       <div className="chips">
@@ -254,11 +267,15 @@ function Shop({ price, category, setCategory, openProduct, saved, toggleSaved })
 }
 
 function Product({ product, price, addToBag, saved, toggleSaved, back, openProduct }) {
-  const [size, setSize] = useState(product.sizes.length === 1 ? product.sizes[0] : "");
+  const onlySize = product.sizes.length === 1 && product.stock[product.sizes[0]] > 0 ? product.sizes[0] : "";
+  const [size, setSize] = useState(onlySize);
   const [warn, setWarn] = useState(false);
-  useEffect(() => { setSize(product.sizes.length === 1 ? product.sizes[0] : ""); setWarn(false); }, [product.id]);
+  useEffect(() => { setSize(onlySize); setWarn(false); }, [product.id]);
 
-  const variants = PRODUCTS.filter((p) => p.name === product.name && p.id !== product.id);
+  const family = PRODUCTS.filter((p) => p.name === product.name);
+  const variants = family.filter((p) => p.id !== product.id);
+  const soldOut = totalStock(product) === 0;
+  const left = size ? product.stock[size] : 0;
   const related = PRODUCTS.filter((p) => p.category === product.category && p.name !== product.name).slice(0, 4);
 
   const add = () => {
@@ -299,15 +316,50 @@ function Product({ product, price, addToBag, saved, toggleSaved, back, openProdu
 
         <h3>Size {warn && <span className="warn">— pick a size</span>}</h3>
         <div className="sizes">
-          {product.sizes.map((s) => (
-            <button key={s} className={`size ${size === s ? "on" : ""}`} onClick={() => { setSize(s); setWarn(false); }}>
-              {s}
-            </button>
-          ))}
+          {product.sizes.map((s) => {
+            const n = product.stock[s] ?? 0;
+            return (
+              <button
+                key={s} disabled={!n}
+                className={`size ${size === s ? "on" : ""} ${!n ? "out" : n <= LOW_STOCK ? "low" : ""}`}
+                onClick={() => { setSize(s); setWarn(false); }}
+              >
+                <span>{s}</span>
+                <small>{n ? `${n} left` : "Sold out"}</small>
+              </button>
+            );
+          })}
         </div>
+        {size && left <= LOW_STOCK && (
+          <p className="stock-note">Only {left} left in {size} — order soon.</p>
+        )}
+
+        <h3>Stock by colour & size</h3>
+        <div className="stock-wrap">
+          <table className="stock-table">
+            <thead>
+              <tr>
+                <th>Colour</th>
+                {product.sizes.map((s) => <th key={s}>{s}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {family.map((v) => (
+                <tr key={v.id} className={v.id === product.id ? "current" : ""} onClick={() => openProduct(v.id)}>
+                  <td><i style={{ background: v.art.base }} />{v.color}</td>
+                  {v.sizes.map((s) => {
+                    const n = v.stock[s] ?? 0;
+                    return <td key={s} className={!n ? "out" : n <= LOW_STOCK ? "low" : ""}>{n || "–"}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted small">Numbers show pieces left. Tap a colour to switch.</p>
 
         <div className="product-actions">
-          <button className="btn primary wide" onClick={add}>Add to bag</button>
+          <button className="btn primary wide" onClick={add} disabled={soldOut}>{soldOut ? "Sold out" : "Add to bag"}</button>
           <button className={`btn ghost square ${saved ? "on" : ""}`} onClick={toggleSaved} aria-label="Save">
             {saved ? "♥" : "♡"}
           </button>
@@ -361,8 +413,14 @@ function Bag({ bag, setBag, price, currency, goShop }) {
   const zone = DELIVERY_ZONES.find((z) => z.id === form.zone);
   const total = subtotal + zone.fee;
 
-  const setQty = (i, qty) =>
-    setBag((b) => (qty <= 0 ? b.filter((_, j) => j !== i) : b.map((l, j) => (j === i ? { ...l, qty } : l))));
+  const setQty = (line, qty) => {
+    const { product, size } = line;
+    const left = product.stock[size] ?? 0;
+    if (qty > left) { setError(`Only ${left} left in ${size} for ${product.name} (${product.color}).`); return; }
+    setError("");
+    setBag((b) => (qty <= 0 ? b.filter((l) => !(l.id === line.id && l.size === size))
+      : b.map((l) => (l.id === line.id && l.size === size ? { ...l, qty } : l))));
+  };
   const field = (k) => ({ value: form[k], onChange: (e) => setForm({ ...form, [k]: e.target.value }) });
 
   const sendOrder = () => {
@@ -406,16 +464,16 @@ function Bag({ bag, setBag, price, currency, goShop }) {
     <section className="section">
       <h1 className="page-title">Your bag</h1>
       <ul className="lines">
-        {lines.map((l, i) => (
+        {lines.map((l) => (
           <li key={`${l.id}-${l.size}`} className="line">
             <div className="line-img"><ProductArt product={l.product} /></div>
             <div className="line-info">
               <b>{l.product.name}</b>
               <span className="muted">{l.product.color} · {l.size}</span>
               <div className="qty">
-                <button onClick={() => setQty(i, l.qty - 1)} aria-label="Decrease">−</button>
+                <button onClick={() => setQty(l, l.qty - 1)} aria-label="Decrease">−</button>
                 <span>{l.qty}</span>
-                <button onClick={() => setQty(i, l.qty + 1)} aria-label="Increase">+</button>
+                <button onClick={() => setQty(l, l.qty + 1)} aria-label="Increase">+</button>
               </div>
             </div>
             <b className="line-price">{price(l.product.price * l.qty)}</b>

@@ -5,9 +5,9 @@ founded in 2023 by Abubakar C. Jalloh (JacTheRealest). Instagram: [@tooeasy001](
 
 ## What's inside
 
-- **Home** — "Who said it can't be easy?" hero, the Liberian Jue (Independence Day) collection, categories, signature tees, and a "buy the real one" anti-counterfeit note.
+- **Home** — "Who said it can't be easy?" hero, the Liberian Jue (Independence Day) baby tees, categories, smiley-logo tees and tanks, and a "buy the real one" anti-counterfeit note.
 - **Shop** — search and filter by Tees, Liberian Jue, Caps, Kids. Save favourites with ♡.
-- **Product** — colour variants, size picker, add to bag.
+- **Product** — colour variants, S–3XL size picker showing how many are left in each size, a stock table for every colour × size, and add to bag. Sold-out sizes are blocked and the bag can't exceed stock.
 - **Bag / checkout** — Monrovia delivery zones, Orange Money / MTN MoMo / cash on delivery. The order is sent to the brand as a ready-made WhatsApp message.
 - **Story** — founder, milestones, community work, social links.
 - **USD ⇄ LRD** price toggle. Bag, saved items and currency are remembered on the phone.
@@ -20,10 +20,11 @@ Nothing below was public on the brand's pages, so these are placeholders:
 |---|---|
 | WhatsApp order number | `src/config.js` → `whatsapp` (checkout is blocked until this is set) |
 | Prices | `src/products.js` → each `price` (USD) |
+| Stock counts (sample numbers now) | `src/products.js` → each `stock` line, one number per size S, M, L, XL, XXL, 3XL |
 | Exchange rate | `src/config.js` → `LRD_PER_USD` |
 | Delivery zones & fees | `src/config.js` → `DELIVERY_ZONES` |
 | Pickup address | `src/config.js` → `pickup` |
-| Real product photos | put files in `public/photos/` and add `image: "/photos/name.jpg"` to a product |
+| Real product photos | the drawings follow the real designs; to use the brand's own photos, put files in `public/photos/` and add `image: "/photos/name.jpg"` to a product |
 | Add / remove products | `src/products.js` |
 
 ## Run it
