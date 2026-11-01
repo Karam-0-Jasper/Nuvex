@@ -271,3 +271,41 @@ h1, h2, h3, .btn, .page-title { font-family: "Public Sans", system-ui, sans-seri
 .confirm-card span { color: var(--muted); }
 .confirm-card b { text-align: right; }
 .confirmed .delivery-map { margin-bottom: 14px; }
+
+.admin-link { display: block; text-align: center; margin: 18px 0 0; font-size: 12px; color: var(--muted); }
+.admin .page-title { margin-bottom: 8px; }
+.admin-create { margin-top: 10px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 4px; }
+.stats div { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; }
+.stats b { font-size: 18px; font-weight: 900; }
+.stats span { font-size: 11px; color: var(--muted); font-weight: 600; }
+.admin-bar { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.admin-bar .chips { flex: 1; min-width: 0; }
+.admin-bar select, .ao-foot select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-size: 14px; }
+.chips.wrap { flex-wrap: wrap; }
+.customers { list-style: none; padding: 0; margin: 6px 0 14px; display: flex; flex-direction: column; gap: 8px; }
+.customers li { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.customers li.repeat { border-color: #e7c66a; box-shadow: inset 4px 0 0 #e0a800; }
+.cust { width: 100%; display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 12px; text-align: left; }
+.rank { font-weight: 900; color: var(--muted); font-size: 14px; }
+.cust-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
+.cust-main b { font-size: 15px; }
+.cust-num { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.badge-orders { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: #eceae4; white-space: nowrap; }
+.badge-orders.silver { background: #e3ecf7; color: #1f4fbf; }
+.badge-orders.gold { background: #fff1c7; color: #8a5a00; }
+.cust-orders { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.cust-orders .btn { padding: 9px 14px; font-size: 13px; align-self: flex-start; }
+.cust-orders ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.cust-orders li { border: 0; border-top: 1px solid var(--line); border-radius: 0; padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.giveaway h3 { margin-top: 8px; }
+.winner { margin: 14px 0; padding: 16px; border-radius: var(--radius); background: #fff8e1; border: 1px solid #f0d58a; display: flex; flex-direction: column; gap: 4px; }
+.winner b { font-size: 22px; font-weight: 900; }
+.winner .btn { margin-top: 10px; }
+.top { padding-left: 20px; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.top li span { display: block; font-size: 13px; color: var(--muted); }
+.admin-orders { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-direction: column; gap: 8px; }
+.admin-orders li { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ao-head, .ao-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ao-foot { margin-top: 4px; }
+.link.danger { color: var(--red); font-size: 13px; }

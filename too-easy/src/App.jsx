@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { BRAND, LRD_PER_USD, DELIVERY_ZONES, DELIVERY_HOURS, TIME_SLOTS, PAYMENT_METHODS } from "./config.js";
 import { PLACES, nearestPlace } from "./places.js";
 import DeliveryMap from "./DeliveryMap.jsx";
+const Admin = lazy(() => import("./Admin.jsx"));
 import { CATEGORIES, PRODUCTS, LOOKBOOK, LOW_STOCK, totalStock } from "./products.js";
 
 function useStored(key, initial) {
@@ -32,7 +33,13 @@ function Thumb({ product }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home");
+  const [tab, setTab] = useState(() => (window.location.hash === "#admin" ? "admin" : "home"));
+  useEffect(() => {
+    const onHash = () => setTab(window.location.hash === "#admin" ? "admin" : "home");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const leaveAdmin = () => { history.replaceState(null, "", window.location.pathname); setTab("home"); };
   const [productId, setProductId] = useState(null);
   const [category, setCategory] = useState("all");
   const [currency, setCurrency] = useStored("te-currency", "USD");
@@ -111,6 +118,7 @@ export default function App() {
         )}
         {tab === "bag" && <Bag bag={bag} setBag={setBag} price={price} currency={currency} goShop={goShop} orders={orders} setOrders={setOrders} />}
         {tab === "story" && <Story goShop={goShop} />}
+        {tab === "admin" && <Suspense fallback={<p className="section muted">Loading…</p>}><Admin exit={leaveAdmin} /></Suspense>}
       </main>
 
       {toast && <div className="toast" role="status">{toast}</div>}
@@ -534,8 +542,10 @@ function Bag({ bag, setBag, price, currency, goShop, orders, setOrders }) {
     );
   };
 
-  const placeOrder = () => {
+  const [saving, setSaving] = useState(false);
+  const placeOrder = async () => {
     if (!form.name.trim() || !form.phone.trim()) { setError("Add your name and phone so the rider can reach you."); return; }
+    if (form.phone.replace(/\D/g, "").length < 7) { setError("That phone number looks too short — use your full 077 / 088 number."); return; }
     if (delivering && !spot) { setError("Show us where to deliver: tap the map or pick your area."); return; }
     if (delivering && !form.landmark.trim()) { setError("Add a landmark so the rider can find you (e.g. house colour, nearby shop)."); return; }
     const whenError = checkWhen(form.date, form.time);
@@ -552,27 +562,52 @@ function Bag({ bag, setBag, price, currency, goShop, orders, setOrders }) {
       pay: PAYMENT_METHODS.find((p) => p.id === form.pay).label, note: form.note,
       sample: /^2310+$/.test(BRAND.whatsapp),
     };
-    if (!order.sample) {
-      const msg = [
-        `Hi Too Easy! New order ${order.no}`,
-        "",
-        ...order.items.map((i) => `• ${i.qty}× ${i.name} (${i.color}, ${i.size}) — ${price(i.price * i.qty)}`),
-        "",
-        `Subtotal: ${price(subtotal)}`,
-        delivering ? `Delivery: ${zone.label}${quoted ? " — please quote" : ` — ${price(zone.fee)}`}` : "Pickup",
-        `Total: ${price(total)} (${currency})${quoted ? " + delivery" : ""}`,
-        "",
-        `${delivering ? "Deliver" : "Pick up"}: ${order.when}`,
-        delivering ? `Area: ${order.spot.area}` : null,
-        delivering ? `Map: https://maps.google.com/?q=${spot.lat.toFixed(5)},${spot.lng.toFixed(5)}` : null,
-        delivering ? `Landmark: ${form.landmark}` : null,
-        `Name: ${form.name}`,
-        `Phone: ${form.phone}`,
-        `Payment: ${order.pay}`,
-        form.note ? `Note: ${form.note}` : null,
-      ].filter((x) => x !== null).join("\n");
-      window.open(`https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
+    const msg = [
+      `Hi Too Easy! New order ${order.no}`,
+      "",
+      ...order.items.map((i) => `• ${i.qty}× ${i.name} (${i.color}, ${i.size}) — ${price(i.price * i.qty)}`),
+      "",
+      `Subtotal: ${price(subtotal)}`,
+      delivering ? `Delivery: ${zone.label}${quoted ? " — please quote" : ` — ${price(zone.fee)}`}` : "Pickup",
+      `Total: ${price(total)} (${currency})${quoted ? " + delivery" : ""}`,
+      "",
+      `${delivering ? "Deliver" : "Pick up"}: ${order.when}`,
+      delivering ? `Area: ${order.spot.area}` : null,
+      delivering ? `Map: https://maps.google.com/?q=${spot.lat.toFixed(5)},${spot.lng.toFixed(5)}` : null,
+      delivering ? `Landmark: ${form.landmark}` : null,
+      `Name: ${form.name}`,
+      `Phone: ${form.phone}`,
+      `Payment: ${order.pay}`,
+      form.note ? `Note: ${form.note}` : null,
+    ].filter((x) => x !== null).join("\n");
+    order.whatsappUrl = order.sample ? null : `https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(msg)}`;
+
+    setSaving(true);
+    let dbError;
+    try {
+      const { supabase } = await import("./supabase.js");
+      ({ error: dbError } = await supabase.from("orders").insert({
+      order_no: order.no,
+      customer_name: form.name.trim(),
+      phone: form.phone.trim(),
+      items: order.items.map(({ thumb, ...i }) => i),
+      item_count: order.items.reduce((n, i) => n + i.qty, 0),
+      subtotal, delivery_fee: zone.fee, fee_quoted: quoted, total,
+      mode: form.mode,
+      deliver_at: new Date(`${form.date}T${form.time}`).toISOString(),
+      deliver_label: order.when,
+      area: order.spot?.area ?? null, zone: zone.label,
+      lat: order.spot?.lat ?? null, lng: order.spot?.lng ?? null,
+      landmark: delivering ? form.landmark.trim() : null,
+      payment: order.pay, note: form.note.trim() || null,
+      sample: order.sample,
+      }));
+    } catch (e) {
+      dbError = e;
     }
+    setSaving(false);
+    if (dbError) { setError("Couldn't reach the shop — check your internet and tap Book again."); return; }
+
     setOrders((o) => [order, ...o].slice(0, 20));
     setBag([]);
     setConfirmed(order);
@@ -601,7 +636,7 @@ function Bag({ bag, setBag, price, currency, goShop, orders, setOrders }) {
                     <span className="muted">{o.mode === "delivery" ? `${o.spot.area} · ${o.when}` : `Pickup · ${o.when}`}</span>
                     <span className="muted">{o.items.reduce((n, i) => n + i.qty, 0)} item(s) · {price(o.total)}{o.quoted ? " + delivery" : ""}</span>
                   </div>
-                  <span className="status">{o.sample ? "Sample" : "Sent"}</span>
+                  <span className="status">{o.sample ? "Sample" : "Booked"}</span>
                 </li>
               ))}
             </ul>
@@ -708,11 +743,11 @@ function Bag({ bag, setBag, price, currency, goShop, orders, setOrders }) {
         <div className="grand"><span>Total</span><span>{price(total)}{quoted ? " + delivery" : ""}</span></div>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="btn primary wide" onClick={placeOrder}>{delivering ? "Book delivery" : "Book pickup"}</button>
+      <button className="btn primary wide" onClick={placeOrder} disabled={saving}>{saving ? "Booking…" : delivering ? "Book delivery" : "Book pickup"}</button>
       <p className="muted small center">
         {/^2310+$/.test(BRAND.whatsapp)
-          ? "Sample mode: orders are saved on this phone only until the shop's WhatsApp number is added."
-          : "Your order opens in WhatsApp. The team confirms stock and payment there."}
+          ? "Sample mode: your order is saved to the shop's records. WhatsApp sending turns on once the shop's number is added."
+          : "Your order is saved to the shop's records, then you send it on WhatsApp so the team can confirm stock and payment."}
       </p>
     </section>
   );
@@ -723,7 +758,10 @@ function OrderConfirmed({ order, price, done }) {
     <section className="section confirmed">
       <div className="tick" aria-hidden="true">✓</div>
       <h1 className="page-title">{order.mode === "delivery" ? "Delivery booked" : "Pickup booked"}</h1>
-      <p className="muted">Order <b>{order.no}</b>{order.sample ? " · sample order (not sent to the shop)" : " · sent to Too Easy on WhatsApp"}</p>
+      <p className="muted">Order <b>{order.no}</b> · saved to Too Easy's records{order.sample ? " (sample — WhatsApp not connected yet)" : ""}</p>
+      {order.whatsappUrl && (
+        <a className="btn whatsapp wide" href={order.whatsappUrl} target="_blank" rel="noreferrer">Send order on WhatsApp</a>
+      )}
       <div className="confirm-card">
         <div><span>When</span><b>{order.when}</b></div>
         {order.spot && <div><span>Where</span><b>{order.spot.area}</b></div>}
@@ -787,6 +825,7 @@ function Story({ goShop }) {
         <a className="btn ghost" href={BRAND.founderInstagram} target="_blank" rel="noreferrer">@{BRAND.founderHandle.toLowerCase()}</a>
       </div>
       <button className="btn primary wide" onClick={() => goShop()}>Shop Too Easy</button>
+      <a className="admin-link" href="#admin">Shop admin</a>
     </section>
   );
 }

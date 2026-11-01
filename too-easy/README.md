@@ -8,8 +8,9 @@ founded in 2023 by Abubakar C. Jalloh (JacTheRealest). Instagram: [@tooeasy001](
 - **Home** — "Who said it can't be easy?" hero on the TE001 campaign photo, Graphic Tees, the Smiley Logo Tee in 22 colourways, categories, Raglans, Utility Totes, a lookbook, and a "buy the real one" anti-counterfeit note.
 - **Shop** — 60 colourways across 10 products, all shown with the brand's own photos: Smiley Logo Tees ($15), Star T ($20), Plate T ($25), Trust Your Dopeness ($25), Bubble Logo, Raglans, caps ($10) and totes. Search and filter by New Drops, Smiley Tees, Raglans, Graphic Tees, Caps, Bags. Each card shows how many are left. Save favourites with ♡.
 - **Product** — front/back photos for the graphic tees, colour dots, S–3XL size picker showing how many are left in each size, a stock table for every colour × size, add to bag, and **Order for delivery**. Sold-out sizes are blocked and the bag can't exceed stock.
-- **Delivery checkout** — choose delivery or pickup, then pick the drop-off spot on a map of Greater Monrovia (70+ communities from OpenStreetMap, tap your community, drop a pin, or use the phone's location), add a landmark, and choose the day and time (8 AM–8 PM, at least 2 hours ahead, up to 30 days). Orange Money / MTN MoMo / cash. The order goes to the brand as a WhatsApp message with a map link; until the WhatsApp number is set it runs as a **sample** and saves the order on the phone under "Your deliveries".
+- **Delivery checkout** — choose delivery or pickup, then pick the drop-off spot on a map of Greater Monrovia (70+ communities from OpenStreetMap, tap your community, drop a pin, or use the phone's location), add a landmark, and choose the day and time (8 AM–8 PM, at least 2 hours ahead, up to 30 days). Orange Money / MTN MoMo / cash. Every order is saved to the shop's database (Supabase), then the customer sends it on WhatsApp with a map link. Until the WhatsApp number is set, orders are marked as **samples**.
 - **Story** — founder, milestones, community work, social links.
+- **Shop admin** (`/#admin`, also linked at the bottom of Story) — private, login required. Every customer matched by phone number (077… and +231 77… count as the same person), repeat buyers highlighted, ranked by orders or spend, each customer's order history, a **giveaway picker** (repeat buyers, 3+ orders, $50+ spent, or everyone) with a WhatsApp message to the winner, an orders list to mark confirmed / delivered / cancelled or delete test orders, and a CSV download.
 - **USD ⇄ LRD** price toggle. Bag, saved items and currency are remembered on the phone.
 
 ## Before launch — fill in the real details
@@ -27,6 +28,14 @@ Nothing below was public on the brand's pages, so these are placeholders:
 | Pickup address | `src/config.js` → `pickup` |
 | New product photos | put a 3:4 photo in `public/photos/` and a 480px-wide copy in `public/photos/thumbs/`, then add a line to `VARIANTS` in `src/products.js` |
 | Add / remove products | `src/products.js` |
+
+## Shop database (Supabase)
+
+Project **too-easy** (`hvbtfzytxnmexdqqxuhi`, London region). Tables: `orders` (shoppers can only insert), `admins` (emails allowed to read), and the `customers` view (one row per phone number).
+
+- **First login:** open `/#admin`, enter the admin email and a new password, tap *First time? Create admin account*, confirm the email link, then sign in.
+- **Add another admin** (e.g. Jac): in Supabase → SQL editor run `insert into public.admins (email) values ('jac@example.com');` then they create their account the same way.
+- Optional: Supabase → Authentication → URL Configuration → set Site URL to `https://too-easy1.vercel.app` so the confirmation link lands back on the shop.
 
 ## Run it
 
