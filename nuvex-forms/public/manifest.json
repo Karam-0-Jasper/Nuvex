@@ -1,0 +1,10 @@
+{
+  "name": "Nuvex Forms",
+  "short_name": "Nuvex Forms",
+  "description": "Answer forms by talking.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f5fb",
+  "theme_color": "#5b3df5",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
