@@ -1,10 +1,10 @@
 {
   "name": "Nuvex Forms",
   "short_name": "Nuvex Forms",
-  "description": "Answer forms by talking.",
+  "description": "Applications people actually finish.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6f5fb",
-  "theme_color": "#5b3df5",
+  "background_color": "#F6F5F1",
+  "theme_color": "#16161A",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
 }

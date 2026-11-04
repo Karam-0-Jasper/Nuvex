@@ -1,4 +1,4 @@
-// The screen people use to answer a form: talk, tap, or reuse what they said before.
+// The screen applicants see. One question at a time; answer by typing, recording, tapping, or reusing.
 import { useEffect, useRef, useState } from "react";
 import {
   canListen, canSpeak, isoDate, matchOption, matchRating, matchYesNo, norm,
@@ -8,11 +8,15 @@ import {
   answersAsText, clearDraft, download, findPastAnswer, loadDraft, loadProfile,
   rememberAnswers, responseLink, saveDraft, saveProfile, uid,
 } from "./store.js";
-import { CopyButton, MicIcon, appendText, digits, whatsappLink } from "./ui.jsx";
+import { CopyButton, appendText, clock, digits, useAutoGrow, useElapsed, whatsappLink } from "./ui.jsx";
+import {
+  IArrowLeft, IArrowRight, ICheck, IChat, IDownload, IHeadset, IMail, IMic, IPen, IReturn, IShare, ISpeaker, IStop,
+} from "./icons.jsx";
 
 const isAnswered = (v) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0);
+const pad2 = (n) => String(n).padStart(2, "0");
 
-function answerText(q, v) {
+export function answerText(q, v) {
   if (!isAnswered(v)) return "";
   if (Array.isArray(v)) return v.join(", ");
   if (q.type === "rating") return `${v} / 5`;
@@ -37,6 +41,8 @@ function matchMany(spoken, options) {
   return i >= 0 ? [options[i]] : [];
 }
 
+const isTyping = (el) => el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+
 export default function Fill({ form, preview = false, onExit }) {
   const qs = form.questions;
   const total = qs.length;
@@ -55,7 +61,7 @@ export default function Fill({ form, preview = false, onExit }) {
     setAnswersState(next);
   };
 
-  const [step, setStep] = useState(-1); // -1 = welcome, 0..total-1 = questions, total = review
+  const [step, setStep] = useState(-1); // -1 = cover, 0..total-1 = questions, total = review
   const stepRef = useRef(step);
   const goTo = (i) => { stepRef.current = i; setStep(i); };
 
@@ -69,11 +75,14 @@ export default function Fill({ form, preview = false, onExit }) {
   const [sent, setSent] = useState(null);
 
   const dict = useDictation((t) => onSpeech(t));
+  const recording = dict.listening && !handsFree;
+  const elapsed = useElapsed(recording);
+  const areaRef = useAutoGrow(step >= 0 && step < total ? answers[qs[step].id] : "");
 
   useEffect(() => { if (!preview && !sent) saveDraft(form.id, answers); }, [answers, preview, sent, form.id]);
   useEffect(() => () => stopSpeaking(), []);
 
-  // ---- Talking back ----
+  // ---- Reading questions aloud ----
 
   const promptFor = (i) => {
     if (i < 0) return `${form.title}. ${form.intro || ""}`;
@@ -108,7 +117,7 @@ export default function Fill({ form, preview = false, onExit }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, handsFree, readAloud]);
 
-  // ---- Moving around ----
+  // ---- Navigation ----
 
   const next = () => {
     const i = stepRef.current;
@@ -135,7 +144,7 @@ export default function Fill({ form, preview = false, onExit }) {
     dict.stop(true);
   };
 
-  // ---- Understanding answers ----
+  // ---- Understanding spoken answers ----
 
   function onSpeech(text) {
     setHeard(text);
@@ -191,7 +200,7 @@ export default function Fill({ form, preview = false, onExit }) {
     }
   }
 
-  // ---- Sending ----
+  // ---- Submitting ----
 
   function submit() {
     const a = answersRef.current;
@@ -224,260 +233,383 @@ export default function Fill({ form, preview = false, onExit }) {
       clearDraft(form.id);
     }
     setSent(response);
-    if (wasHandsFree) speak("Done! Now choose how to send your answers.");
+    if (wasHandsFree) speak("Done. Choose how to send your answers.");
     else stopSpeaking();
   }
+
+  // ---- Keyboard ----
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (sent || e.altKey) return;
+      const i = stepRef.current;
+      const typing = isTyping(e.target);
+      if (e.key === "Enter") {
+        // Enter on an answer control (a choice, a quick date) means "continue"; on any other button, let it click.
+        if (e.target.tagName === "BUTTON" && !e.target.closest(".question .choices, .question .scale, .question .quick-dates")) return;
+        if (i < 0) { e.preventDefault(); goTo(0); return; }
+        if (i >= total) { if (e.metaKey || e.ctrlKey) { e.preventDefault(); submit(); } return; }
+        const q = qs[i];
+        if (e.target.tagName === "TEXTAREA" && !(e.metaKey || e.ctrlKey)) return;
+        if (q && !(e.shiftKey)) { e.preventDefault(); next(); }
+        return;
+      }
+      if (typing || e.metaKey || e.ctrlKey || i < 0 || i >= total) return;
+      const q = qs[i];
+      const k = e.key.toLowerCase();
+      if (q.type === "choice" || q.type === "multi") {
+        const idx = k.charCodeAt(0) - 97;
+        if (k.length === 1 && idx >= 0 && idx < q.options.length) {
+          const o = q.options[idx];
+          if (q.type === "choice") setAnswer(q.id, o);
+          else setAnswer(q.id, (prev = []) => ((prev || []).includes(o) ? prev.filter((x) => x !== o) : [...(prev || []), o]));
+          setMissing(null);
+        }
+      } else if (q.type === "yesno" && (k === "y" || k === "n")) {
+        setAnswer(q.id, k === "y" ? "Yes" : "No");
+        setMissing(null);
+      } else if (q.type === "rating" && /^[1-5]$/.test(k)) {
+        setAnswer(q.id, Number(k));
+        setMissing(null);
+      }
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  });
+
+  const owner = form.owner?.name || "";
 
   if (sent) return <Sent form={form} response={sent} preview={preview} onExit={onExit} />;
 
   const autoCount = qs.filter((q) => q.autofill && profile[q.autofill]).length;
   const answeredCount = qs.filter((q) => isAnswered(answers[q.id])).length;
+  const mins = Math.max(1, Math.round(total * 0.4));
 
-  // ---- Welcome ----
-  if (step < 0) {
-    const mins = Math.max(1, Math.round(total * 0.4));
-    return (
-      <div className="fill">
-        {preview && <div className="preview-bar">Preview — this is what people see. <button className="link" onClick={onExit}>Back to editing</button></div>}
-        <div className="card welcome">
-          <div className="big-icon"><MicIcon size={34} /></div>
-          <h1>{form.title}</h1>
-          {form.owner?.name && <p className="muted">from {form.owner.name}</p>}
-          {form.intro && <p className="intro">{form.intro}</p>}
-          <p className="muted">{total} questions · about {mins} min{mins > 1 ? "s" : ""}{answeredCount ? ` · ${answeredCount} already filled in` : ""}</p>
-          {autoCount > 0 && <p className="good">✨ {autoCount} answer{autoCount > 1 ? "s" : ""} filled in from your saved info.</p>}
-
-          <div className="ways">
-            {canListen && (
-              <button className="way primary" onClick={startHandsFree}>
-                <span className="way-icon">🎧</span>
-                <span><b>Talk the whole way</b><small>I read each question, you answer out loud. No hands.</small></span>
+  const Top = (
+    <header className="fill-top">
+      <div className="fill-top-inner">
+        <span className="fill-owner">{owner || form.title}</span>
+        {step >= 0 && (
+          <div className="fill-tools">
+            {canSpeak && !handsFree && (
+              <button className={`tool ${readAloud ? "is-on" : ""}`} onClick={() => setReadAloud(!readAloud)} aria-pressed={readAloud}>
+                <ISpeaker size={16} /><span>Read aloud</span>
               </button>
             )}
-            <button className="way" onClick={() => goTo(0)}>
-              <span className="way-icon">👆</span>
-              <span><b>Tap & speak</b><small>One question at a time. Mic on every answer.</small></span>
-            </button>
+            {canListen && (
+              <button className={`tool ${handsFree ? "is-on" : ""}`} onClick={handsFree ? stopHandsFree : startHandsFree} aria-pressed={handsFree}>
+                <IHeadset size={16} /><span>Voice mode</span>
+              </button>
+            )}
           </div>
-          {!canListen && <p className="muted small-text">Voice answers work in Chrome, Edge and Safari. You can still tap and type here.</p>}
+        )}
+      </div>
+      {step >= 0 && <div className="progress" aria-hidden="true"><span style={{ width: `${(Math.min(step, total) / total) * 100}%` }} /></div>}
+      {preview && (
+        <div className="preview-note">
+          <span>Preview — nothing is saved or sent.</span>
+          <button className="text-btn" onClick={onExit}>Close preview</button>
         </div>
+      )}
+    </header>
+  );
+
+  const VoiceBar = handsFree && (
+    <div className="voice-bar" role="status">
+      <span className={`rec-dot ${dict.listening ? "is-live" : ""}`} />
+      <div className="voice-bar-text">
+        <strong>{dict.listening ? "Listening" : "Reading question"}</strong>
+        <span>{dict.interim || (heard ? `“${heard}”` : "Say “next”, “back”, “repeat” or “stop”")}</span>
+      </div>
+      <button className="text-btn" onClick={stopHandsFree}>Exit</button>
+    </div>
+  );
+
+  // ---- Cover ----
+  if (step < 0) {
+    return (
+      <div className="fill-page">
+        {Top}
+        <main className="fill-main">
+          <section className="cover">
+            {owner && <p className="eyebrow">{owner}</p>}
+            <h1 className="cover-title">{form.title}</h1>
+            {form.intro && <p className="cover-intro">{form.intro}</p>}
+            <dl className="cover-meta">
+              <div><dt>Questions</dt><dd>{total}</dd></div>
+              <div><dt>Time</dt><dd>About {mins} min</dd></div>
+              <div><dt>Account</dt><dd>Not needed</dd></div>
+            </dl>
+            {(autoCount > 0 || answeredCount > 0) && (
+              <p className="cover-note">
+                {answeredCount > autoCount ? `You have ${answeredCount} answers saved from last time.` : `${autoCount} answers will be filled in from your saved details.`}
+              </p>
+            )}
+            <div className="cover-actions">
+              <button className="btn btn-primary btn-lg" onClick={() => goTo(0)}>
+                <span>Start</span><IArrowRight size={18} />
+              </button>
+              {canListen && (
+                <button className="btn btn-lg" onClick={startHandsFree}>
+                  <IHeadset size={18} /><span>Answer by voice</span>
+                </button>
+              )}
+            </div>
+            <p className="fine">
+              {canListen
+                ? "In voice mode each question is read aloud and you answer out loud. You can switch back to typing at any time."
+                : "Press Enter to begin. Voice answers are available in Chrome, Edge and Safari."}
+            </p>
+          </section>
+        </main>
       </div>
     );
   }
 
   // ---- Review ----
   if (step >= total) {
+    const missingCount = qs.filter((q) => q.required && !isAnswered(answers[q.id])).length;
     return (
-      <div className="fill">
-        <Toolbar {...{ step, total, handsFree, readAloud, setReadAloud, startHandsFree, stopHandsFree, dict, heard }} />
-        <div className="card">
-          <h2>Check your answers</h2>
-          <p className="muted">Tap any answer to change it.</p>
-          <ol className="review">
-            {qs.map((q, i) => (
-              <li key={q.id} onClick={() => goTo(i)} className={q.required && !isAnswered(answers[q.id]) ? "missing" : ""}>
-                <span className="rq">{q.text}{q.required && " *"}</span>
-                <span className="ra">{answerText(q, answers[q.id]) || <em>No answer</em>}</span>
-              </li>
-            ))}
-          </ol>
-          {!preview && (
-            <label className="check">
-              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-              Remember my info and answers on this phone, so the next form is faster
-            </label>
-          )}
-          <div className="row">
-            <button className="btn" onClick={back}>← Back</button>
-            <button className="btn primary grow" onClick={submit}>Submit answers</button>
+      <div className="fill-page">
+        {Top}
+        <main className="fill-main">
+          <section className="review">
+            <p className="eyebrow">Review</p>
+            <h1 className="cover-title">Check your answers</h1>
+            <p className="cover-intro">Select any answer to change it. Nothing is sent until you submit.</p>
+            <ol className="review-list">
+              {qs.map((q, i) => {
+                const empty = !isAnswered(answers[q.id]);
+                return (
+                  <li key={q.id}>
+                    <button className={`review-row ${q.required && empty ? "is-missing" : ""}`} onClick={() => goTo(i)}>
+                      <span className="review-num">{pad2(i + 1)}</span>
+                      <span className="review-body">
+                        <span className="review-q">{q.text}</span>
+                        <span className={`review-a ${empty ? "is-empty" : ""}`}>{empty ? (q.required ? "Required — not answered" : "Skipped") : answerText(q, answers[q.id])}</span>
+                      </span>
+                      <IPen size={16} className="review-edit" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+            {!preview && (
+              <label className="check">
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                <span>Save my details and longer answers on this device, so the next application is faster.</span>
+              </label>
+            )}
+          </section>
+        </main>
+        <footer className="fill-nav">
+          <div className="fill-nav-inner">
+            <button className="btn" onClick={back}><IArrowLeft size={16} /><span>Back</span></button>
+            <span className="fill-count">{missingCount ? `${missingCount} required left` : "Ready to submit"}</span>
+            <button className="btn btn-primary" onClick={submit}><span>Submit</span><IArrowRight size={16} /></button>
           </div>
-        </div>
+        </footer>
+        {VoiceBar}
       </div>
     );
   }
 
-  // ---- One question ----
+  // ---- Question ----
   const q = qs[step];
   const value = answers[q.id];
   const isText = q.type === "short" || q.type === "long";
   const past = isText && !q.autofill ? findPastAnswer(q.text) : null;
   const fromProfile = q.autofill && profile[q.autofill] && value === profile[q.autofill];
-  const micOn = dict.listening && !handsFree;
+  const optKey = (i) => String.fromCharCode(65 + i);
+
+  const Record = canListen && !handsFree && (
+    <button className={`record ${recording ? "is-live" : ""}`} onClick={() => (recording ? dict.stop() : dict.start(true))}>
+      {recording ? <><span className="rec-dot is-live" /><span>Stop</span><span className="record-time">{clock(elapsed)}</span></> : <><IMic size={17} /><span>{isText ? (value ? "Record more" : "Record answer") : "Say it instead"}</span></>}
+    </button>
+  );
 
   return (
-    <div className="fill">
-      {preview && <div className="preview-bar">Preview <button className="link" onClick={onExit}>Back to editing</button></div>}
-      <Toolbar {...{ step, total, handsFree, readAloud, setReadAloud, startHandsFree, stopHandsFree, dict, heard }} />
+    <div className="fill-page">
+      {Top}
+      <main className="fill-main">
+        <section className={`question ${missing === q.id ? "is-missing" : ""}`} key={q.id}>
+          <p className="q-meta">
+            <span className="q-num">{pad2(step + 1)}</span>
+            <span className="q-of">of {pad2(total)}</span>
+            {q.required && <span className="q-req">Required</span>}
+          </p>
+          <h1 className="q-title">{q.text}</h1>
+          {q.hint && <p className="q-hint">{q.hint}</p>}
 
-      <div className={`card question ${missing === q.id ? "shake" : ""}`} key={q.id}>
-        <p className="qnum">Question {step + 1} of {total}{q.required && <span className="req"> · required</span>}</p>
-        <h2 className="qtext">{q.text}</h2>
-        {q.hint && <p className="muted">{q.hint}</p>}
+          {isText && (
+            <div className="answer">
+              {q.type === "long" ? (
+                <textarea ref={areaRef} className="answer-area" rows={6} value={value || ""} aria-label={q.text}
+                  placeholder="Type your answer, or record it" onChange={(e) => setAnswer(q.id, e.target.value)} />
+              ) : (
+                <input className="answer-line" value={value || ""} aria-label={q.text}
+                  placeholder="Type your answer"
+                  type={q.autofill === "email" ? "email" : q.autofill === "phone" ? "tel" : "text"}
+                  autoComplete={{ name: "name", email: "email", phone: "tel", location: "address-level2", link: "url" }[q.autofill] || "off"}
+                  onChange={(e) => setAnswer(q.id, e.target.value)} />
+              )}
+              {recording && <p className="live-text">{dict.interim || "Listening…"}</p>}
+              {fromProfile && <p className="answer-note">Filled in from your saved details.</p>}
 
-        {isText && (
-          <>
-            {q.type === "long" ? (
-              <textarea className="answer" rows={5} value={value || ""} placeholder="Tap the mic and talk, or type here…" onChange={(e) => setAnswer(q.id, e.target.value)} />
-            ) : (
-              <input className="answer" value={value || ""} placeholder="Tap the mic and say it, or type…"
-                type={q.autofill === "email" ? "email" : q.autofill === "phone" ? "tel" : "text"}
-                autoComplete={{ name: "name", email: "email", phone: "tel", location: "address-level2", link: "url" }[q.autofill] || "off"}
-                onChange={(e) => setAnswer(q.id, e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && next()} />
-            )}
-            {fromProfile && <p className="good small-text">✨ Filled in from your saved info</p>}
-            {micOn && <p className="interim live">{dict.interim || "Listening… speak now"}</p>}
-            {canListen && !handsFree && (
-              <button className={`mic big ${micOn ? "on" : ""}`} onClick={() => (micOn ? dict.stop() : dict.start(true))}>
-                <MicIcon size={26} /> <span>{micOn ? "Done talking" : value ? "Add more by voice" : "Tap to speak your answer"}</span>
-              </button>
-            )}
-            {past && past.answer !== value && (
-              <div className="suggest">
-                <p className="small-text muted">You answered a similar question before:</p>
-                <p className="past">“{past.answer.length > 160 ? past.answer.slice(0, 160) + "…" : past.answer}”</p>
-                <button className="btn small" onClick={() => setAnswer(q.id, past.answer)}>Use this answer</button>
+              <div className="answer-tools">
+                {Record}
+                {value && <button className="text-btn" onClick={() => setAnswer(q.id, "")}>Clear</button>}
+                <span className="kbd-hint">
+                  {q.type === "long" ? <>Press <kbd>Ctrl</kbd> <kbd>Enter</kbd></> : <>Press <kbd>Enter</kbd></>}
+                </span>
               </div>
-            )}
-            {q.starters?.length > 0 && !value && (
-              <div className="chips">
-                <span className="small-text muted">Not sure how to start? Tap one:</span>
-                {q.starters.map((s) => (
-                  <button key={s} className="chip" onClick={() => setAnswer(q.id, s.replace(/…$/, "").trimEnd() + " ")}>{s}</button>
-                ))}
-              </div>
-            )}
-            {value && <button className="link small-text" onClick={() => setAnswer(q.id, "")}>Clear answer</button>}
-          </>
-        )}
 
-        {q.type === "choice" && (
-          <div className="options">
-            {q.options.map((o, i) => (
-              <button key={o} className={`option ${value === o ? "picked" : ""}`} onClick={() => { setAnswer(q.id, o); setMissing(null); }}>
-                <span className="letter">{String.fromCharCode(65 + i)}</span>{o}
-              </button>
-            ))}
-          </div>
-        )}
+              {past && past.answer !== value && (
+                <div className="reuse">
+                  <p className="reuse-label">From an earlier application</p>
+                  <p className="reuse-text">{past.answer.length > 220 ? past.answer.slice(0, 220) + "…" : past.answer}</p>
+                  <button className="text-btn" onClick={() => setAnswer(q.id, past.answer)}>Use this answer</button>
+                </div>
+              )}
+              {q.starters?.length > 0 && !value && (
+                <div className="starters">
+                  <span className="starters-label">Start with</span>
+                  {q.starters.map((s) => (
+                    <button key={s} className="starter" onClick={() => setAnswer(q.id, s.replace(/…$/, "").trimEnd() + " ")}>{s}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-        {q.type === "multi" && (
-          <div className="options">
-            {q.options.map((o, i) => {
-              const on = (value || []).includes(o);
-              return (
-                <button key={o} className={`option ${on ? "picked" : ""}`}
-                  onClick={() => setAnswer(q.id, (prev = []) => (on ? (prev || []).filter((x) => x !== o) : [...(prev || []), o]))}>
-                  <span className="letter">{on ? "✓" : String.fromCharCode(65 + i)}</span>{o}
-                </button>
-              );
-            })}
-            <p className="small-text muted">Pick as many as you like.</p>
-          </div>
-        )}
-
-        {q.type === "yesno" && (
-          <div className="options two">
-            {["Yes", "No"].map((o) => (
-              <button key={o} className={`option big-choice ${value === o ? "picked" : ""}`} onClick={() => { setAnswer(q.id, o); setMissing(null); }}>
-                {o === "Yes" ? "👍" : "👎"} {o}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {q.type === "rating" && (
-          <div className="rating">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button key={n} className={`star ${value >= n ? "on" : ""}`} onClick={() => { setAnswer(q.id, n); setMissing(null); }} aria-label={`${n} of 5`}>★</button>
-            ))}
-          </div>
-        )}
-
-        {q.type === "date" && (
-          <div className="date-pick">
-            <input type="date" className="answer" value={value || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />
-            <div className="chips">
-              {[["Today", 0], ["Tomorrow", 1], ["In a week", 7], ["In 2 weeks", 14], ["In a month", 30]].map(([label, days]) => {
-                const d = new Date();
-                d.setDate(d.getDate() + days);
-                return <button key={label} className="chip" onClick={() => setAnswer(q.id, isoDate(d))}>{label}</button>;
+          {(q.type === "choice" || q.type === "multi") && (
+            <div className="choices" role={q.type === "choice" ? "radiogroup" : "group"} aria-label={q.text}>
+              {q.type === "multi" && <p className="choices-note">Select all that apply</p>}
+              {q.options.map((o, i) => {
+                const on = q.type === "choice" ? value === o : (value || []).includes(o);
+                return (
+                  <button key={o} className={`choice ${on ? "is-on" : ""}`} role={q.type === "choice" ? "radio" : "checkbox"} aria-checked={on}
+                    onClick={() => {
+                      if (q.type === "choice") setAnswer(q.id, o);
+                      else setAnswer(q.id, (prev = []) => (on ? (prev || []).filter((x) => x !== o) : [...(prev || []), o]));
+                      setMissing(null);
+                    }}>
+                    <kbd className="choice-key">{optKey(i)}</kbd>
+                    <span className="choice-label">{o}</span>
+                    {on && <ICheck size={18} className="choice-check" />}
+                  </button>
+                );
               })}
             </div>
-          </div>
-        )}
+          )}
 
-        {!isText && canListen && !handsFree && (
-          <button className={`mic ${micOn ? "on" : ""}`} onClick={() => (micOn ? dict.stop() : dict.start(true))}>
-            <MicIcon /> <span>{micOn ? (dict.interim || "Listening…") : "Or just say it"}</span>
+          {q.type === "yesno" && (
+            <div className="choices is-row" role="radiogroup" aria-label={q.text}>
+              {["Yes", "No"].map((o) => (
+                <button key={o} className={`choice ${value === o ? "is-on" : ""}`} role="radio" aria-checked={value === o}
+                  onClick={() => { setAnswer(q.id, o); setMissing(null); }}>
+                  <kbd className="choice-key">{o[0]}</kbd>
+                  <span className="choice-label">{o}</span>
+                  {value === o && <ICheck size={18} className="choice-check" />}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {q.type === "rating" && (
+            <div className="scale">
+              <div className="scale-row" role="radiogroup" aria-label={q.text}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button key={n} className={`scale-step ${value === n ? "is-on" : ""}`} role="radio" aria-checked={value === n}
+                    onClick={() => { setAnswer(q.id, n); setMissing(null); }}>{n}</button>
+                ))}
+              </div>
+              <div className="scale-ends"><span>Not at all</span><span>Completely</span></div>
+            </div>
+          )}
+
+          {q.type === "date" && (
+            <div className="date-answer">
+              <input type="date" className="answer-line is-date" value={value || ""} aria-label={q.text} onChange={(e) => setAnswer(q.id, e.target.value)} />
+              <div className="quick-dates">
+                {[["Today", 0], ["Tomorrow", 1], ["In one week", 7], ["In two weeks", 14], ["In one month", 30]].map(([label, days]) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + days);
+                  const iso = isoDate(d);
+                  return <button key={label} className={`starter ${value === iso ? "is-on" : ""}`} onClick={() => setAnswer(q.id, iso)}>{label}</button>;
+                })}
+              </div>
+            </div>
+          )}
+
+          {!isText && Record && (
+            <div className="answer-tools">
+              {Record}
+              {recording && <span className="live-inline">{dict.interim || "Listening…"}</span>}
+            </div>
+          )}
+          {dict.error && <p className="error">{dict.error}</p>}
+          {missing === q.id && <p className="error" role="alert">Please answer this question to continue.</p>}
+        </section>
+      </main>
+
+      <footer className="fill-nav">
+        <div className="fill-nav-inner">
+          <button className="btn" onClick={() => (step === 0 ? goTo(-1) : back())}><IArrowLeft size={16} /><span>Back</span></button>
+          <span className="fill-count">{step + 1} / {total}</span>
+          <button className="btn btn-primary" onClick={next}>
+            <span>{step === total - 1 ? "Review" : isAnswered(value) || q.required ? "Continue" : "Skip"}</span>
+            {isText && q.type === "short" ? <IReturn size={16} /> : <IArrowRight size={16} />}
           </button>
-        )}
-        {dict.error && <p className="err small-text">{dict.error}</p>}
-        {missing === q.id && <p className="err">This question needs an answer.</p>}
-      </div>
-
-      <div className="nav">
-        <button className="btn" onClick={back} disabled={step === 0}>← Back</button>
-        <button className="btn primary grow" onClick={next}>
-          {step === total - 1 ? "Review answers →" : isAnswered(value) || q.required ? "Next →" : "Skip →"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Toolbar({ step, total, handsFree, readAloud, setReadAloud, startHandsFree, stopHandsFree, dict, heard }) {
-  const pct = Math.round((Math.min(step, total) / total) * 100);
-  return (
-    <>
-      <div className="progress"><div style={{ width: pct + "%" }} /></div>
-      <div className="toolbar">
-        {canSpeak && !handsFree && (
-          <button className={`pill ${readAloud ? "on" : ""}`} onClick={() => setReadAloud(!readAloud)}>🔊 Read to me</button>
-        )}
-        {canListen && (
-          <button className={`pill ${handsFree ? "on" : ""}`} onClick={handsFree ? stopHandsFree : startHandsFree}>
-            🎧 {handsFree ? "Hands-free on" : "Hands-free"}
-          </button>
-        )}
-      </div>
-      {handsFree && (
-        <div className="handsfree">
-          <span className={`dot ${dict.listening ? "live" : ""}`} />
-          <div>
-            <b>{dict.listening ? "Listening…" : "Speaking…"}</b>
-            <p className="small-text">{dict.interim || (heard ? `Heard: “${heard}”` : "Say “next”, “back”, “repeat”, “clear” or “stop”.")}</p>
-          </div>
         </div>
-      )}
-    </>
+      </footer>
+      {VoiceBar}
+    </div>
   );
 }
 
 function Sent({ form, response, preview, onExit }) {
   const link = responseLink(response);
-  const text = answersAsText(`Answers to: ${form.title}${response.from ? ` — from ${response.from}` : ""}`, response.answers);
-  const message = `${text}\n\nOpen these answers in Nuvex Forms:\n${link}`;
+  const text = answersAsText(`${form.title}${response.from ? ` — ${response.from}` : ""}`, response.answers);
+  const message = `${text}\n\nView these answers in Nuvex Forms:\n${link}`;
   const wa = digits(form.owner?.whatsapp);
   const email = form.owner?.email;
+  const to = form.owner?.name || "the organiser";
   return (
-    <div className="fill">
-      <div className="card welcome">
-        <div className="big-icon done">✓</div>
-        <h1>{preview ? "Preview finished" : "Almost done!"}</h1>
-        <p>{preview ? "This is where people send their answers to you." : `Send your answers to ${form.owner?.name || "the form owner"}:`}</p>
-        <div className="send">
-          {wa && <a className="btn primary wa" href={whatsappLink(wa, message)} target="_blank" rel="noreferrer">Send on WhatsApp</a>}
-          {email && (
-            <a className="btn primary" href={`mailto:${email}?subject=${encodeURIComponent("Answers: " + form.title)}&body=${encodeURIComponent(message)}`}>Send by email</a>
-          )}
-          <CopyButton text={message} label={wa || email ? "Copy answers" : "Copy answers to send"} className={`btn ${wa || email ? "" : "primary"}`} />
-          {navigator.share && <button className="btn" onClick={() => navigator.share({ title: form.title, text: message }).catch(() => {})}>Share another way</button>}
-        </div>
-        <p className="muted small-text">Keep a copy for yourself:</p>
-        <button className="link" onClick={() => download(`${form.title} - my answers.txt`, text)}>Download my answers</button>
-        {preview && <div className="row"><button className="btn grow" onClick={onExit}>Back to editing</button></div>}
-      </div>
+    <div className="fill-page">
+      <header className="fill-top"><div className="fill-top-inner"><span className="fill-owner">{form.owner?.name || form.title}</span></div></header>
+      <main className="fill-main">
+        <section className="cover">
+          <span className="done-mark"><ICheck size={22} /></span>
+          <p className="eyebrow">{preview ? "Preview complete" : "Last step"}</p>
+          <h1 className="cover-title">Send your answers to {to}</h1>
+          <p className="cover-intro">
+            {preview ? "Applicants choose one of these options to deliver their answers to you." : "Your answers are ready. Choose how to deliver them — they arrive formatted and easy to read."}
+          </p>
+          <div className="send-list">
+            {wa && (
+              <a className="send-row" href={whatsappLink(wa, message)} target="_blank" rel="noreferrer">
+                <IChat size={20} /><span><strong>WhatsApp</strong><small>Opens a message to {form.owner?.whatsapp}</small></span><IArrowRight size={16} />
+              </a>
+            )}
+            {email && (
+              <a className="send-row" href={`mailto:${email}?subject=${encodeURIComponent(form.title)}&body=${encodeURIComponent(message)}`}>
+                <IMail size={20} /><span><strong>Email</strong><small>Opens a message to {email}</small></span><IArrowRight size={16} />
+              </a>
+            )}
+            {navigator.share && (
+              <button className="send-row" onClick={() => navigator.share({ title: form.title, text: message }).catch(() => {})}>
+                <IShare size={20} /><span><strong>Another app</strong><small>Use your phone's share sheet</small></span><IArrowRight size={16} />
+              </button>
+            )}
+          </div>
+          <div className="cover-actions">
+            <CopyButton text={message} label="Copy answers" />
+            <button className="btn" onClick={() => download(`${form.title} - answers.txt`, text)}><IDownload size={16} /><span>Keep a copy</span></button>
+            {preview && <button className="btn btn-primary" onClick={onExit}><span>Back to editor</span></button>}
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
