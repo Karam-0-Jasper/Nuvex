@@ -31,7 +31,35 @@ One deliberate system, no decoration:
 - **Form:** hairline rules instead of shadows and bubbles, one question per screen, keyboard shortcuts (Enter to continue, A–J to choose, Y/N, 1–5), a record button with a running timer.
 - **Icons:** one line-icon set. No emoji anywhere.
 
-## How it works (no server yet)
+## Video interviews
+
+Any form can run as a timed video interview (editor → **Video interview**). The interviewer reads each written
+question aloud, the applicant answers on camera against a countdown, and the answer is transcribed live.
+
+- **Follow-ups:** Claude can ask one short follow-up per question when an answer is vague (`api/interview.js`).
+- **AI review:** when the hiring team opens a result, Claude scores each answer 1–5 on what was said, with strengths and gaps.
+  It is told never to judge accent, grammar, appearance or any personal characteristic, and it does not recommend hire/reject.
+- **Integrity checks (on-device):** face visible, more than one person in view, leaving the tab or window, copy/paste,
+  leaving full screen, repeat attempts on the same device. Face *detection* only — no recognition, no expression or emotion
+  analysis, and no video is recorded or uploaded.
+- **Sealed results:** the server signs each finished interview; edits to the results link show as "Edited after submission".
+
+### Turning the AI on (Vercel)
+In the Vercel project for `nuvex-forms`, add these under **Settings → Environment Variables**, then redeploy:
+
+| Name | Value |
+|---|---|
+| `ANTHROPIC_API_KEY` | Your key from console.anthropic.com |
+| `INTERVIEW_SECRET` | Any long random string (used to seal results) |
+
+Without the key, interviews still run (questions, timer, transcript, integrity checks); follow-ups and AI review are skipped.
+Model: Claude Opus 5.5. Rough cost: about $0.05–0.15 per interview.
+
+**Known limits:** the API route is public, so set a spending limit in the Anthropic Console and consider Vercel's firewall
+rate limiting. No browser check can stop a second phone or someone off-camera; results flag what can be detected.
+Some places regulate AI video interviews (for example Illinois and the EU) — applicants are told what is checked and must consent.
+
+## How it works
 The whole form is packed into the link itself. The answers come back the same way, as a link in the WhatsApp or email message.
 So it costs nothing to run and works on any free host. Voice uses the browser's built-in speech tools: Chrome, Edge and Safari (iPhone included). In other browsers people can still tap and type.
 
