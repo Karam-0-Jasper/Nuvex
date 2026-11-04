@@ -1,110 +1,89 @@
-// Ready-made forms. Edit or add your own here.
+// Starter forms. Every question can be edited.
 // Question types: short, long, choice (pick one), multi (pick several), yesno, rating, date.
-// autofill: name | email | phone | location | link — filled in from the person's saved "My info".
-// starters: tap-to-start phrases for long answers, so nobody stares at an empty box.
+// autofill: name | email | phone | location | link — filled in for people who have applied before on the same device.
+// interview.questions[].expect: what a good answer includes. Only the form owner sees this; the AI uses it to score.
 
 export const TYPES = [
   { id: "short", label: "Short answer" },
   { id: "long", label: "Paragraph" },
-  { id: "choice", label: "Single choice" },
-  { id: "multi", label: "Multiple choice" },
+  { id: "choice", label: "Multiple choice" },
+  { id: "multi", label: "Checkboxes" },
   { id: "yesno", label: "Yes or no" },
   { id: "rating", label: "Scale 1–5" },
   { id: "date", label: "Date" },
 ];
 
 const contact = [
-  { type: "short", text: "What's your full name?", required: true, autofill: "name" },
-  { type: "short", text: "Your email address", required: true, autofill: "email" },
-  { type: "short", text: "Phone or WhatsApp number", autofill: "phone" },
+  { type: "short", text: "Full name", required: true, autofill: "name" },
+  { type: "short", text: "Email", required: true, autofill: "email" },
+  { type: "short", text: "Phone or WhatsApp", autofill: "phone" },
 ];
 
 export const TEMPLATES = [
   {
-    id: "interview",
-    category: "Hiring",
-    title: "Screening interview",
-    blurb: "First-round questions candidates answer in their own words, before you schedule a call.",
-    intro: "Answer as you would in person. You can record each answer or type it, and change anything before you send.",
-    questions: [
-      ...contact,
-      { type: "short", text: "Which role are you interviewing for?", required: true },
-      { type: "long", text: "Tell us about yourself.", required: true, starters: ["My name is … and I'm from …", "Right now I work as …", "What I'm really good at is …"] },
-      { type: "long", text: "Why do you want to work with us?", required: true, starters: ["I first heard about you when …", "What I like about your work is …", "I can help you with …"] },
-      { type: "long", text: "What is your biggest strength?", starters: ["People always tell me I'm good at …", "One example is when …"] },
-      { type: "long", text: "Tell us about a hard situation at work or school and how you handled it.", hint: "What happened, what you did, how it ended.", starters: ["The situation was …", "What I did was …", "In the end …"] },
-      { type: "choice", text: "How much experience do you have in this kind of work?", options: ["Just starting out", "1–2 years", "3–5 years", "More than 5 years"] },
-      { type: "yesno", text: "Are you comfortable working some weekends?" },
-      { type: "date", text: "When could you start?" },
-      { type: "short", text: "What pay are you expecting?", hint: "A range is fine." },
-      { type: "long", text: "Anything else you want us to know?" },
-    ],
-  },
-  {
     id: "job",
-    category: "Hiring",
     title: "Job application",
-    blurb: "Role, experience, tools and portfolio in one short application.",
-    intro: "This takes about five minutes. Your contact details can fill in automatically.",
+    intro: "Thanks for your interest. This takes about five minutes.",
     questions: [
       ...contact,
-      { type: "short", text: "Which city do you live in?", autofill: "location" },
       { type: "choice", text: "Which position are you applying for?", required: true, options: ["Video editor", "Photographer", "Social media manager", "Graphic designer", "Other"] },
-      { type: "multi", text: "Which tools can you use?", options: ["Premiere Pro", "CapCut", "Photoshop", "Canva", "Lightroom", "Final Cut", "Figma"] },
       { type: "short", text: "Link to your portfolio or past work", autofill: "link" },
-      { type: "long", text: "Describe a project you're proud of.", starters: ["The project was …", "My part was …", "The result was …"] },
-      { type: "choice", text: "What type of work are you looking for?", options: ["Full-time", "Part-time", "Freelance / per project", "Internship"] },
+      { type: "long", text: "Tell us about a project you're proud of." },
       { type: "date", text: "When can you start?" },
     ],
   },
   {
-    id: "scholarship",
-    category: "Education",
-    title: "Scholarship application",
-    blurb: "Personal statements applicants can speak first and edit after.",
-    intro: "Take your time. Record or type each answer, then read it back before you submit.",
+    id: "interview",
+    title: "Application with interview",
+    intro: "First a few details, then a short video interview. You'll need a camera and microphone.",
     questions: [
       ...contact,
-      { type: "short", text: "Name of your current school", required: true },
-      { type: "choice", text: "What level are you at?", options: ["High school", "University – year 1–2", "University – year 3+", "Graduate"] },
+      { type: "short", text: "Which role are you applying for?", required: true },
+    ],
+    interview: {
+      enabled: true,
+      seconds: 120,
+      questions: [
+        { text: "Tell us about yourself and your work so far.", expect: "Their current or most recent work, the skills they actually use, and why this kind of role suits them." },
+        { text: "Describe a project you're proud of. What was your part in it?", expect: "A real, specific project. What they personally did, not just the team. A result, such as numbers, feedback or a deadline met." },
+        { text: "Why do you want to work with us?", expect: "Something specific about our work or clients, and how their skills would help us. Not a general answer that fits any company." },
+      ],
+    },
+  },
+  {
+    id: "scholarship",
+    title: "Scholarship application",
+    intro: "Take your time. You can type or speak each answer.",
+    questions: [
+      ...contact,
+      { type: "short", text: "Current school", required: true },
       { type: "short", text: "What do you want to study?", required: true },
-      { type: "long", text: "Why do you deserve this opportunity?", required: true, starters: ["Growing up, I …", "My goal is to …", "This would help me …"] },
-      { type: "long", text: "Tell us about a challenge you've overcome.", starters: ["A hard time in my life was …", "What helped me get through it was …"] },
-      { type: "long", text: "How will you give back to your community?" },
-      { type: "yesno", text: "Do you have a recommendation letter?" },
+      { type: "long", text: "Why do you deserve this scholarship?", required: true },
+      { type: "long", text: "Tell us about a challenge you've overcome." },
     ],
   },
   {
     id: "brief",
-    category: "Studios & agencies",
     title: "Client brief",
-    blurb: "Clients describe their brand, audience, budget and deadline before the first meeting.",
-    intro: "Tell us about your brand and what you need. Speak freely — we read every answer before we reply.",
+    intro: "Tell us about your brand and what you need.",
     questions: [
       { type: "short", text: "Your name", required: true, autofill: "name" },
       { type: "short", text: "Business or brand name", required: true },
       { type: "short", text: "Phone or WhatsApp", required: true, autofill: "phone" },
-      { type: "multi", text: "What do you need from us?", required: true, options: ["Photos", "Video editing", "Brand story", "Social media marketing", "Logo / design", "Ads"] },
-      { type: "long", text: "Describe your brand in your own words.", starters: ["We sell / we do …", "Our customers love us because …", "We started because …"] },
-      { type: "long", text: "Who are your customers?", hint: "Age, where they are, what they like." },
-      { type: "short", text: "Links to work you like (any brand)", hint: "Instagram, TikTok, YouTube…" },
-      { type: "choice", text: "What's your budget?", options: ["Under $100", "$100 – $300", "$300 – $1,000", "$1,000+", "Not sure yet"] },
-      { type: "date", text: "When do you need it done?" },
+      { type: "multi", text: "What do you need?", required: true, options: ["Photos", "Video editing", "Brand story", "Social media", "Logo / design"] },
+      { type: "long", text: "Describe your brand and your customers." },
+      { type: "choice", text: "Budget", options: ["Under $100", "$100 – $300", "$300 – $1,000", "$1,000+", "Not sure yet"] },
+      { type: "date", text: "When do you need it?" },
     ],
   },
   {
     id: "event",
-    category: "Events",
     title: "Event registration",
-    blurb: "Attendance, guests and session interest in under a minute.",
     intro: "Register in under a minute.",
     questions: [
       ...contact.slice(0, 2),
       { type: "yesno", text: "Will you attend?", required: true },
       { type: "choice", text: "How many people are you bringing?", options: ["Just me", "+1", "+2", "+3 or more"] },
-      { type: "multi", text: "Which sessions interest you?", options: ["Talks", "Workshop", "Networking", "Showcase"] },
-      { type: "rating", text: "How likely are you to attend every session?" },
-      { type: "short", text: "Any food allergies or needs?" },
     ],
   },
 ];
