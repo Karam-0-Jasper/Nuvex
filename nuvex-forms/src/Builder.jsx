@@ -42,6 +42,8 @@ function problems(form) {
   if (bad >= 0) return `Question ${bad + 1} has no text yet.`;
   const noOpts = form.questions.findIndex((q) => (q.type === "choice" || q.type === "multi") && q.options.filter((o) => o.trim()).length < 2);
   if (noOpts >= 0) return `Question ${noOpts + 1} needs at least two options.`;
+  if (form.interview?.enabled && !form.questions.some((q) => (q.type === "short" || q.type === "long") && !q.autofill))
+    return "A video interview needs at least one short-answer or paragraph question.";
   return "";
 }
 
@@ -144,6 +146,29 @@ export default function Builder({ initial, onBack, onPreview }) {
               <input className="field" type="email" value={form.owner?.email || ""} onChange={(e) => updateOwner({ email: e.target.value })} placeholder="hiring@studio.com" />
             </label>
           </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-head">
+            <h2>Video interview</h2>
+            <p>Applicants answer on camera against the clock while an interviewer asks each question aloud. Answers are transcribed, Claude can ask one follow-up per question, and you receive an AI review with integrity flags. Appearance and accent are never assessed.</p>
+          </div>
+          <Switch checked={form.interview?.enabled} onChange={(v) => update({ interview: { seconds: 120, followups: true, ...form.interview, enabled: v } })} label="Run this form as a video interview" />
+          {form.interview?.enabled && (
+            <>
+              <div className="grid-3 iv-settings">
+                <label className="lbl">Time per answer
+                  <select className="select is-block" value={form.interview.seconds || 120} onChange={(e) => update({ interview: { ...form.interview, seconds: Number(e.target.value) } })}>
+                    {[60, 90, 120, 180, 300].map((s) => <option key={s} value={s}>{s < 120 ? `${s} seconds` : `${s / 60} minutes`}</option>)}
+                  </select>
+                </label>
+                <div className="lbl">Follow-up questions
+                  <Switch checked={form.interview.followups !== false} onChange={(v) => update({ interview: { ...form.interview, followups: v } })} label="Ask one when an answer is vague" />
+                </div>
+              </div>
+              <p className="fine">Asked in the interview: {form.questions.filter((q) => (q.type === "short" || q.type === "long") && !q.autofill).length} written questions. Choice, date and contact questions are skipped; name and email are collected before it starts.</p>
+            </>
+          )}
         </section>
 
         <div className="section-head">

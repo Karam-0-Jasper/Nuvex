@@ -46,6 +46,7 @@ export function publicForm(form) {
     title: form.title,
     intro: form.intro || "",
     owner: form.owner || {},
+    ...(form.interview?.enabled ? { interview: { enabled: true, seconds: form.interview.seconds || 120, followups: form.interview.followups !== false } } : {}),
     questions: form.questions.map(({ id, type, text, hint, options, required, autofill, starters }) => {
       const q = { id, type, text };
       if (hint) q.hint = hint;
@@ -80,6 +81,9 @@ export function addToInbox(response) {
   if (inbox.some((r) => r.id === response.id)) return false;
   write("nf.inbox", [{ ...response, received: Date.now() }, ...inbox]);
   return true;
+}
+export function updateInbox(id, patch) {
+  write("nf.inbox", loadInbox().map((r) => (r.id === id ? { ...r, ...patch } : r)));
 }
 export const removeFromInbox = (id) => write("nf.inbox", loadInbox().filter((r) => r.id !== id));
 

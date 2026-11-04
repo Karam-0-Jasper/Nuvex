@@ -568,7 +568,7 @@ export default function Fill({ form, preview = false, onExit }) {
   );
 }
 
-function Sent({ form, response, preview, onExit }) {
+export function Sent({ form, response, preview, onExit }) {
   const link = responseLink(response);
   const text = answersAsText(`${form.title}${response.from ? ` — ${response.from}` : ""}`, response.answers);
   const message = `${text}\n\nView these answers in Nuvex Forms:\n${link}`;

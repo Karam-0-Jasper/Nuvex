@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Builder, { newQuestion } from "./Builder.jsx";
 import Fill from "./Fill.jsx";
+import Interview, { InterviewReport } from "./Interview.jsx";
 import { TEMPLATES } from "./templates.js";
 import {
   PROFILE_FIELDS, addToInbox, answersAsText, deleteForm, download, formLink, getForm, loadBank,
@@ -48,7 +49,8 @@ export default function App() {
   // Applicant links: the form only, no product chrome.
   if (hash.startsWith("#f=")) {
     const form = unpack(hash.slice(3));
-    return form?.questions ? <Fill key={hash} form={form} /> : <Shell><Broken /></Shell>;
+    if (!form?.questions) return <Shell><Broken /></Shell>;
+    return form.interview?.enabled ? <Interview key={hash} form={form} /> : <Fill key={hash} form={form} />;
   }
   if (hash.startsWith("#r=")) {
     const r = unpack(hash.slice(3));
@@ -62,9 +64,18 @@ export default function App() {
   }
   if (page === "preview") {
     const f = getForm(arg);
-    return f ? <Fill key={hash} form={publicForm(f)} preview onExit={() => go(`#/edit/${f.id}`)} /> : <Shell><Broken /></Shell>;
+    if (!f) return <Shell><Broken /></Shell>;
+    const pf = publicForm(f);
+    const exit = () => go(`#/edit/${f.id}`);
+    return pf.interview?.enabled ? <Interview key={hash} form={pf} preview onExit={exit} /> : <Fill key={hash} form={pf} preview onExit={exit} />;
   }
   if (page === "sample") {
+    if (arg === "video") {
+      const t = fromTemplate("interview");
+      const f = publicForm({ ...t, title: "Video editor — screening interview", owner: { name: "Sample studio" }, interview: { enabled: true, seconds: 90, followups: true },
+        questions: t.questions.filter((q) => !q.autofill).slice(1, 4) });
+      return <Interview key={hash} form={f} preview onExit={() => go("#/")} />;
+    }
     const t = fromTemplate(arg);
     return <Fill key={hash} form={publicForm({ ...t, owner: { name: "Sample application" } })} preview onExit={() => go("#/")} />;
   }
@@ -248,6 +259,37 @@ function Home() {
       </section>
 
       <section className="page">
+        <div className="feature">
+          <div className="feature-copy">
+            <p className="eyebrow">New · Video interviews</p>
+            <h2 className="display is-small">A first interview that runs itself.</h2>
+            <p className="lede">
+              Turn any form into a timed video interview. The interviewer asks each question aloud, the applicant answers on camera
+              against the clock, and Claude asks a short follow-up when an answer is vague. You get a transcript, an AI review of what
+              was said, and integrity flags for tab switching or anyone else in view.
+            </p>
+            <ul className="feature-points">
+              <li>Never scored: appearance, accent or background.</li>
+              <li>Video stays on the applicant's device. Face checks run locally.</li>
+              <li>Results are sealed, so edits to the link are detected.</li>
+            </ul>
+            <div className="hero-actions">
+              <a className="btn btn-primary btn-lg" href="#/sample/video"><span>Try a sample interview</span><IArrowRight size={18} /></a>
+            </div>
+          </div>
+          <div className="feature-shot" aria-hidden="true">
+            <div className="iv-tiles is-demo">
+              <div className="iv-tile iv-host is-speaking"><div className="iv-avatar">S</div><div className="iv-voice"><span /><span /><span /><span /><span /></div><span className="iv-label">Sample studio · Interviewer</span></div>
+              <div className="iv-tile iv-self is-placeholder"><span className="iv-label">You</span></div>
+            </div>
+            <p className="q-meta"><span className="q-num">Follow-up</span><span className="q-of">to question 02</span></p>
+            <p className="shot-q">What was your part in that launch, specifically?</p>
+            <div className="iv-timer is-demo"><svg width="40" height="40" viewBox="0 0 56 56"><circle cx="28" cy="28" r="22" className="iv-ring-bg" /><circle cx="28" cy="28" r="22" className="iv-ring" strokeDasharray="138.2" strokeDashoffset="52" /></svg><span>0:34</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="page">
         <div className="steps">
           {[
             ["01", "Write", "Start from a template, or paste and dictate your own questions. Answer types are set for you."],
@@ -320,7 +362,7 @@ function ResponseView({ response }) {
       <p className="eyebrow">{isNew ? "Added to your responses" : "Already in your responses"}</p>
       <h1 className="page-title">{response.from || "Applicant"}</h1>
       <p className="lede">{response.title} · {new Date(response.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>
-      <AnswerList answers={response.answers} />
+      {response.kind === "interview" ? <InterviewReport response={response} /> : <AnswerList answers={response.answers} />}
       <div className="row-start">
         <a className="btn btn-primary" href="#/responses"><span>All responses</span><IArrowRight size={16} /></a>
         <CopyButton text={answersAsText(response.title, response.answers)} label="Copy as text" />
@@ -364,13 +406,13 @@ function Responses() {
               return (
                 <div key={r.id} className={`table-item ${open === r.id ? "is-open" : ""}`}>
                   <button className="table-row is-button" onClick={() => setOpen(open === r.id ? null : r.id)} aria-expanded={open === r.id}>
-                    <span className="table-title">{r.from || "Applicant"}</span>
+                    <span className="table-title">{r.from || "Applicant"}{r.kind === "interview" && <span className="tag">Video interview</span>}</span>
                     <span className="muted table-preview">{preview}</span>
                     <span className="muted">{timeAgo(r.at)}</span>
                   </button>
                   {open === r.id && (
                     <div className="table-detail">
-                      <AnswerList answers={r.answers} />
+                      {r.kind === "interview" ? <InterviewReport response={r} /> : <AnswerList answers={r.answers} />}
                       <div className="row-start">
                         <CopyButton text={answersAsText(r.title, r.answers)} label="Copy" className="btn btn-sm" />
                         <button className="btn btn-sm is-danger" onClick={() => { removeFromInbox(r.id); setInbox(loadInbox()); }}>
