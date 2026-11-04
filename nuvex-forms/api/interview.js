@@ -111,15 +111,18 @@ characteristics, health, family, religion, nationality or anything unrelated to 
     if (body.action === "evaluate") {
       const items = (Array.isArray(body.items) ? body.items : []).slice(0, LIMITS.questions);
       const transcript = items
-        .map((it, i) => `[${i}] Q: ${clip(it.question, 600)}\nA: ${clip(it.answer, LIMITS.text) || "(no answer)"}`)
+        .map((it, i) => `[${i}] Q: ${clip(it.question, 600)}\n` +
+          (it.expect ? `What the hiring team wants to hear: ${clip(it.expect, 1000)}\n` : "") +
+          `A: ${clip(it.answer, LIMITS.text) || "(no answer)"}`)
         .join("\n\n");
       const result = await ask(client, {
         effort: "medium",
         maxTokens: 8000,
         schema: EVALUATION_SCHEMA,
         system: `You review screening-interview transcripts for a hiring team. The role: ${role || "not specified"}.
-Score each answer 1-5 (1 = no relevant content, 3 = relevant but general, 5 = specific, evidenced and well reasoned) and give a
-one-sentence note quoting or paraphrasing what earned the score. Then give an overall 1-5, a two-sentence summary, up to
+Where the hiring team wrote what they want to hear, score the answer against that: 5 = covers it with specifics,
+3 = partly covers it or stays general, 1 = misses it. Where nothing was written (and for follow-ups), score 1-5 on relevance,
+specificity and evidence. Give a one-sentence note saying what was covered or missing. Then give an overall 1-5, a two-sentence summary, up to
 three strengths and up to three gaps worth exploring in a human interview. You are a decision aid, not the decision-maker:
 do not recommend hiring or rejecting. Set confidence to low when answers are short or few. ${FAIRNESS}`,
         user: `Interview transcript:\n\n${transcript}`,

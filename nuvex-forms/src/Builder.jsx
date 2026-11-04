@@ -1,49 +1,26 @@
-// The form editor. Saves automatically, like a document.
+// The form editor: Questions, Interview and Responses — like Google Forms. Saves automatically.
 import { useEffect, useRef, useState } from "react";
 import { TYPES } from "./templates.js";
-import { PROFILE_FIELDS, formLink, guessAutofill, saveForm, uid } from "./store.js";
-import { CopyButton, MicButton, Switch, VoiceField, appendText, whatsappLink } from "./ui.jsx";
-import {
-  IArrowDown, IArrowLeft, IArrowUp, IChat, IDuplicate, IEye, IMail, IPlus, IShare, ITrash, IX,
-} from "./icons.jsx";
+import { formLink, guessAutofill, loadInbox, saveForm, uid } from "./store.js";
+import FormResponses from "./Responses.jsx";
+import { CopyButton, Switch, useAutoGrow, whatsappLink } from "./ui.jsx";
+import { IArrowDown, IArrowLeft, IArrowUp, IChat, IEye, IMail, IPlus, ITrash, IX } from "./icons.jsx";
 
-const AUTOFILL = [{ key: "", label: "Off" }, ...PROFILE_FIELDS.map((f) => ({ key: f.key, label: f.label }))];
-const pad2 = (n) => String(n).padStart(2, "0");
-
-export function newQuestion(text = "", type = "long") {
+export function newQuestion(text = "", type = "short") {
   const q = { id: uid(), type, text, options: [], required: false, autofill: guessAutofill(text) };
-  if (type === "choice" || type === "multi") q.options = ["", ""];
+  if (type === "choice" || type === "multi") q.options = ["Option 1"];
   return q;
 }
-
-/** Turn a paragraph of spoken or pasted questions into separate questions. */
-export function splitQuestions(raw) {
-  return raw
-    .replace(/\bnext question\b/gi, "\n")
-    .match(/[^?\n]+\??/g)
-    ?.map((s) => s.replace(/^[\s\d.)\-•*]+/, "").trim())
-    .filter((s) => s.replace(/\?/g, "").trim().length > 3)
-    .map((s) => {
-      const text = s.charAt(0).toUpperCase() + s.slice(1);
-      const auto = guessAutofill(text);
-      let type = "long";
-      if (auto) type = "short";
-      else if (/^(are|do|did|have|has|can|could|will|would|is|were)\b/i.test(text)) type = "yesno";
-      else if (/\bwhen\b.*\b(start|available|begin|date|deadline)\b|\bdate\b/i.test(text)) type = "date";
-      else if (/^(what is your|whats your|what's your|which)\b/i.test(text) && text.length < 45) type = "short";
-      return { ...newQuestion(text, type), autofill: auto };
-    }) || [];
-}
+const newInterviewQuestion = () => ({ id: uid(), text: "", expect: "" });
 
 function problems(form) {
-  if (!form.title.trim()) return "Give the form a title before sharing it.";
-  if (!form.questions.length) return "Add at least one question before sharing.";
+  if (!form.title.trim()) return "Give your form a title.";
+  if (!form.questions.length) return "Add at least one question.";
   const bad = form.questions.findIndex((q) => !q.text.trim());
-  if (bad >= 0) return `Question ${bad + 1} has no text yet.`;
+  if (bad >= 0) return `Question ${bad + 1} is empty.`;
   const noOpts = form.questions.findIndex((q) => (q.type === "choice" || q.type === "multi") && q.options.filter((o) => o.trim()).length < 2);
   if (noOpts >= 0) return `Question ${noOpts + 1} needs at least two options.`;
-  if (form.interview?.enabled && !form.questions.some((q) => (q.type === "short" || q.type === "long") && !q.autofill))
-    return "A video interview needs at least one short-answer or paragraph question.";
+  if (form.interview?.enabled && !form.interview.questions?.some((q) => q.text.trim())) return "Add at least one interview question, or turn the interview off.";
   return "";
 }
 
@@ -53,29 +30,28 @@ const clean = (form) => ({
   questions: form.questions.map((q) => ({ ...q, text: q.text.trim(), options: (q.options || []).map((o) => o.trim()).filter(Boolean) })),
 });
 
-export default function Builder({ initial, onBack, onPreview }) {
+function AutoText({ value, onChange, className, placeholder, label }) {
+  const ref = useAutoGrow(value);
+  return <textarea ref={ref} rows={1} className={className} value={value || ""} placeholder={placeholder} aria-label={label} onChange={(e) => onChange(e.target.value)} />;
+}
+
+export default function Builder({ initial, initialTab, onBack, onPreview }) {
   const [form, setForm] = useState(initial);
-  const [bulk, setBulk] = useState("");
+  const [tab, setTab] = useState(["questions", "interview", "responses"].includes(initialTab) ? initialTab : "questions");
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState("");
-  const [savedAt, setSavedAt] = useState(null);
   const firstRun = useRef(true);
+  const responseCount = loadInbox().filter((r) => r.formId === form.id).length;
 
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return; }
-    const t = setTimeout(() => { saveForm(form); setSavedAt(Date.now()); }, 400);
+    const t = setTimeout(() => saveForm(form), 300);
     return () => clearTimeout(t);
   }, [form]);
 
   const update = (patch) => setForm((f) => ({ ...f, ...patch }));
-  const updateOwner = (patch) => setForm((f) => ({ ...f, owner: { ...f.owner, ...patch } }));
   const setQ = (id, patch) => setForm((f) => ({ ...f, questions: f.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)) }));
   const removeQ = (id) => setForm((f) => ({ ...f, questions: f.questions.filter((q) => q.id !== id) }));
-  const duplicateQ = (i) => setForm((f) => {
-    const qs = [...f.questions];
-    qs.splice(i + 1, 0, { ...qs[i], id: uid(), options: [...(qs[i].options || [])] });
-    return { ...f, questions: qs };
-  });
   const moveQ = (i, d) => setForm((f) => {
     const qs = [...f.questions];
     const j = i + d;
@@ -83,202 +59,169 @@ export default function Builder({ initial, onBack, onPreview }) {
     [qs[i], qs[j]] = [qs[j], qs[i]];
     return { ...f, questions: qs };
   });
-  const addQs = (list) => setForm((f) => ({ ...f, questions: [...f.questions, ...list] }));
 
-  const changeType = (q, type) => {
-    const patch = { type };
-    if ((type === "choice" || type === "multi") && !(q.options || []).filter(Boolean).length) patch.options = ["", ""];
-    setQ(q.id, patch);
-  };
+  const iv = form.interview || { enabled: false, seconds: 120, questions: [] };
+  const setIv = (patch) => update({ interview: { ...iv, ...patch } });
+  const setIvQ = (id, patch) => setIv({ questions: iv.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)) });
 
-  const flushSave = () => { const f = clean(form); saveForm(f); setForm(f); setSavedAt(Date.now()); return f; };
-  const share = () => {
+  const check = () => {
     const e = problems(form);
     setError(e);
-    if (e) return;
-    flushSave();
-    setSharing(true);
-  };
-  const preview = () => {
-    const e = problems(form);
-    setError(e);
-    if (e) return;
-    onPreview(flushSave());
+    if (e) { setTab(e.includes("interview") ? "interview" : "questions"); return false; }
+    const f = clean(form);
+    saveForm(f);
+    setForm(f);
+    return f;
   };
 
   const link = sharing ? formLink(clean(form)) : "";
-  const invite = `${form.title}\n\nYou can type or record your answers — no account needed:\n${link}`;
+  const invite = `${form.title}\n\nApply here:\n${link}`;
 
   return (
     <div className="editor-page">
       <header className="editor-bar">
         <div className="editor-bar-inner">
-          <button className="text-btn back-link" onClick={onBack}><IArrowLeft size={16} /><span>Forms</span></button>
-          <span className="editor-status">{savedAt ? "Saved" : "Draft"}</span>
+          <button className="icon-btn" onClick={onBack} aria-label="Back to forms" title="Back to forms"><IArrowLeft size={18} /></button>
+          <span className="editor-name">{form.title || "Untitled form"}</span>
           <span className="grow" />
-          <button className="btn" onClick={preview}><IEye size={16} /><span>Preview</span></button>
-          <button className="btn btn-primary" onClick={share}><IShare size={16} /><span>Share</span></button>
+          <button className="btn" onClick={() => { const f = check(); if (f) onPreview(f); }}><IEye size={16} /><span className="hide-sm">Preview</span></button>
+          <button className="btn btn-primary" onClick={() => { if (check()) setSharing(true); }}>Send</button>
         </div>
+        <nav className="tabs" aria-label="Form sections">
+          {[["questions", "Questions"], ["interview", "Interview"], ["responses", `Responses${responseCount ? ` (${responseCount})` : ""}`]].map(([id, label]) => (
+            <button key={id} className={tab === id ? "is-active" : ""} onClick={() => setTab(id)}>{label}</button>
+          ))}
+        </nav>
       </header>
 
       <main className="editor">
         {error && <p className="banner-error" role="alert">{error}</p>}
 
-        <section className="doc-head">
-          <VoiceField className="doc-title" value={form.title} onChange={(v) => update({ title: v })} placeholder="Untitled form" aria-label="Form title" />
-          <VoiceField className="doc-intro" multiline rows={2} value={form.intro} onChange={(v) => update({ intro: v })}
-            placeholder="Add a short introduction applicants see before they start" aria-label="Introduction" />
-        </section>
+        {tab === "questions" && (
+          <>
+            <section className="e-card e-head">
+              <AutoText className="e-title" value={form.title} onChange={(v) => update({ title: v })} placeholder="Untitled form" label="Form title" />
+              <AutoText className="e-desc" value={form.intro} onChange={(v) => update({ intro: v })} placeholder="Form description" label="Form description" />
+            </section>
 
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Delivery</h2>
-            <p>When someone finishes, they send their answers to you with one tap.</p>
-          </div>
-          <div className="grid-3">
-            <label className="lbl">Your name or organisation
-              <input className="field" value={form.owner?.name || ""} onChange={(e) => updateOwner({ name: e.target.value })} placeholder="Pace Kreatvy" />
-            </label>
-            <label className="lbl">WhatsApp number
-              <input className="field" type="tel" value={form.owner?.whatsapp || ""} onChange={(e) => updateOwner({ whatsapp: e.target.value })} placeholder="+231 77 000 0000" />
-            </label>
-            <label className="lbl">Email
-              <input className="field" type="email" value={form.owner?.email || ""} onChange={(e) => updateOwner({ email: e.target.value })} placeholder="hiring@studio.com" />
-            </label>
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Video interview</h2>
-            <p>Applicants answer on camera against the clock while an interviewer asks each question aloud. Answers are transcribed, Claude can ask one follow-up per question, and you receive an AI review with integrity flags. Appearance and accent are never assessed.</p>
-          </div>
-          <Switch checked={form.interview?.enabled} onChange={(v) => update({ interview: { seconds: 120, followups: true, ...form.interview, enabled: v } })} label="Run this form as a video interview" />
-          {form.interview?.enabled && (
-            <>
-              <div className="grid-3 iv-settings">
-                <label className="lbl">Time per answer
-                  <select className="select is-block" value={form.interview.seconds || 120} onChange={(e) => update({ interview: { ...form.interview, seconds: Number(e.target.value) } })}>
-                    {[60, 90, 120, 180, 300].map((s) => <option key={s} value={s}>{s < 120 ? `${s} seconds` : `${s / 60} minutes`}</option>)}
+            {form.questions.map((q, i) => (
+              <section className="e-card" key={q.id}>
+                <div className="e-row">
+                  <AutoText className="e-q" value={q.text} placeholder="Question" label={`Question ${i + 1}`}
+                    onChange={(v) => setQ(q.id, { text: v, ...(q.autofillTouched ? {} : { autofill: guessAutofill(v) }) })} />
+                  <select className="select is-type" value={q.type} aria-label="Question type"
+                    onChange={(e) => {
+                      const type = e.target.value;
+                      setQ(q.id, { type, ...((type === "choice" || type === "multi") && !q.options.filter(Boolean).length ? { options: ["Option 1"] } : {}) });
+                    }}>
+                    {TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
-                </label>
-                <div className="lbl">Follow-up questions
-                  <Switch checked={form.interview.followups !== false} onChange={(v) => update({ interview: { ...form.interview, followups: v } })} label="Ask one when an answer is vague" />
                 </div>
-              </div>
-              <p className="fine">Asked in the interview: {form.questions.filter((q) => (q.type === "short" || q.type === "long") && !q.autofill).length} written questions. Choice, date and contact questions are skipped; name and email are collected before it starts.</p>
-            </>
-          )}
-        </section>
 
-        <div className="section-head">
-          <h2>Questions <span className="muted">{form.questions.length}</span></h2>
-        </div>
-
-        <ol className="qlist">
-          {form.questions.map((q, i) => (
-            <li className="qblock" key={q.id}>
-              <div className="qblock-head">
-                <span className="qblock-num">{pad2(i + 1)}</span>
-                <select className="select" value={q.type} onChange={(e) => changeType(q, e.target.value)} aria-label="Answer type">
-                  {TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-                </select>
-                <span className="grow" />
-                <button className="icon-btn" onClick={() => moveQ(i, -1)} disabled={i === 0} aria-label="Move up" title="Move up"><IArrowUp size={16} /></button>
-                <button className="icon-btn" onClick={() => moveQ(i, 1)} disabled={i === form.questions.length - 1} aria-label="Move down" title="Move down"><IArrowDown size={16} /></button>
-                <button className="icon-btn" onClick={() => duplicateQ(i)} aria-label="Duplicate" title="Duplicate"><IDuplicate size={16} /></button>
-                <button className="icon-btn is-danger" onClick={() => removeQ(q.id)} aria-label="Delete question" title="Delete"><ITrash size={16} /></button>
-              </div>
-
-              <VoiceField className="qblock-text" value={q.text} placeholder="Question"
-                onChange={(v) => setQ(q.id, { text: v, ...(q.autofillTouched ? {} : { autofill: guessAutofill(v) }) })} aria-label={`Question ${i + 1}`} />
-              <input className="field field-quiet" value={q.hint || ""} onChange={(e) => setQ(q.id, { hint: e.target.value })} placeholder="Description (optional)" aria-label="Description" />
-
-              {(q.type === "choice" || q.type === "multi") && (
-                <div className="opts">
-                  {q.options.map((o, oi) => (
-                    <div className="opt" key={oi}>
-                      <span className={`opt-mark ${q.type === "multi" ? "is-square" : ""}`} />
-                      <input className="field field-quiet" value={o} placeholder={`Option ${oi + 1}`} aria-label={`Option ${oi + 1}`}
-                        onChange={(e) => setQ(q.id, { options: q.options.map((x, xi) => (xi === oi ? e.target.value : x)) })}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setQ(q.id, { options: [...q.options, ""] }); } }} />
-                      <button className="icon-btn" onClick={() => setQ(q.id, { options: q.options.filter((_, xi) => xi !== oi) })} aria-label="Remove option"><IX size={15} /></button>
-                    </div>
-                  ))}
-                  <div className="opt-actions">
-                    <button className="text-btn" onClick={() => setQ(q.id, { options: [...q.options, ""] })}><IPlus size={15} /><span>Add option</span></button>
-                    <span className="opt-dictate">
-                      <MicButton label="Dictate options"
-                        onText={(t) => setQ(q.id, { options: [...q.options.filter((x) => x.trim()), ...t.split(/\s*(?:,|\bor\b|\band\b)\s*/i).filter(Boolean).map((x) => x.charAt(0).toUpperCase() + x.slice(1))] })} />
-                      <small>Dictate options</small>
-                    </span>
+                {(q.type === "choice" || q.type === "multi") && (
+                  <div className="e-opts">
+                    {q.options.map((o, oi) => (
+                      <div className="e-opt" key={oi}>
+                        <span className={`opt-mark ${q.type === "multi" ? "is-square" : ""}`} />
+                        <input className="e-opt-input" value={o} placeholder={`Option ${oi + 1}`} aria-label={`Option ${oi + 1}`}
+                          onChange={(e) => setQ(q.id, { options: q.options.map((x, xi) => (xi === oi ? e.target.value : x)) })}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setQ(q.id, { options: [...q.options, ""] }); } }} />
+                        <button className="icon-btn" onClick={() => setQ(q.id, { options: q.options.filter((_, xi) => xi !== oi) })} aria-label="Remove option"><IX size={15} /></button>
+                      </div>
+                    ))}
+                    <button className="e-add-opt" onClick={() => setQ(q.id, { options: [...q.options, ""] })}>
+                      <span className={`opt-mark ${q.type === "multi" ? "is-square" : ""}`} />Add option
+                    </button>
                   </div>
-                </div>
-              )}
+                )}
+                {q.type === "short" && <p className="e-sample">Short answer text</p>}
+                {q.type === "long" && <p className="e-sample">Long answer text</p>}
+                {q.type === "yesno" && <p className="e-sample">Yes / No</p>}
+                {q.type === "rating" && <p className="e-sample">1 · 2 · 3 · 4 · 5</p>}
+                {q.type === "date" && <p className="e-sample">Day, month, year</p>}
 
-              <div className="qblock-foot">
-                <Switch checked={q.required} onChange={(v) => setQ(q.id, { required: v })} label="Required" />
-                {(q.type === "short" || q.type === "long") && (
+                <div className="e-foot">
+                  <button className="icon-btn" onClick={() => moveQ(i, -1)} disabled={i === 0} aria-label="Move up" title="Move up"><IArrowUp size={16} /></button>
+                  <button className="icon-btn" onClick={() => moveQ(i, 1)} disabled={i === form.questions.length - 1} aria-label="Move down" title="Move down"><IArrowDown size={16} /></button>
+                  <button className="icon-btn is-danger" onClick={() => removeQ(q.id)} aria-label="Delete question" title="Delete"><ITrash size={16} /></button>
+                  <span className="e-divider" />
+                  <Switch checked={q.required} onChange={(v) => setQ(q.id, { required: v })} label="Required" />
+                </div>
+              </section>
+            ))}
+
+            <button className="e-add" onClick={() => update({ questions: [...form.questions, newQuestion()] })}><IPlus size={18} /><span>Add question</span></button>
+          </>
+        )}
+
+        {tab === "interview" && (
+          <>
+            <section className="e-card e-head">
+              <h2 className="e-h2">Video interview</h2>
+              <p className="muted">After filling in the form, applicants answer these questions out loud on camera. The AI asks each one, follows up if something is missing, and scores the answer against what you say a good answer includes.</p>
+              <div className="e-foot is-top">
+                <Switch checked={iv.enabled} onChange={(v) => setIv({ enabled: v, questions: iv.questions?.length ? iv.questions : [newInterviewQuestion()] })} label="Add a video interview to this form" />
+                {iv.enabled && (
                   <label className="inline-select">
-                    <span>Autofill</span>
-                    <select className="select" value={q.autofill || ""} onChange={(e) => setQ(q.id, { autofill: e.target.value, autofillTouched: true })}>
-                      {AUTOFILL.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
+                    <span>Time per answer</span>
+                    <select className="select" value={iv.seconds || 120} onChange={(e) => setIv({ seconds: Number(e.target.value) })}>
+                      {[60, 90, 120, 180, 300].map((s) => <option key={s} value={s}>{s < 120 ? `${s} seconds` : `${s / 60} minutes`}</option>)}
                     </select>
                   </label>
                 )}
               </div>
-            </li>
-          ))}
-        </ol>
+            </section>
 
-        <div className="add-bar">
-          <span className="add-bar-label">Add</span>
-          {TYPES.map((t) => (
-            <button key={t.id} className="chip" onClick={() => addQs([newQuestion("", t.id)])}><IPlus size={14} /><span>{t.label}</span></button>
-          ))}
-        </div>
+            {iv.enabled && (
+              <>
+                {iv.questions.map((q, i) => (
+                  <section className="e-card" key={q.id}>
+                    <div className="e-label-row">
+                      <p className="e-label">Question {i + 1}</p>
+                      <button className="icon-btn is-danger" onClick={() => setIv({ questions: iv.questions.filter((x) => x.id !== q.id) })} aria-label="Delete interview question" title="Delete"><ITrash size={16} /></button>
+                    </div>
+                    <AutoText className="e-q" value={q.text} placeholder="What should the AI ask?" label={`Interview question ${i + 1}`} onChange={(v) => setIvQ(q.id, { text: v })} />
+                    <p className="e-label">A good answer includes</p>
+                    <AutoText className="e-expect" value={q.expect} label="What a good answer includes"
+                      placeholder="For example: a real project, what they did themselves, and the result." onChange={(v) => setIvQ(q.id, { expect: v })} />
+                    <p className="e-private">Only you see this. Applicants never do.</p>
+                  </section>
+                ))}
+                <button className="e-add" onClick={() => setIv({ questions: [...iv.questions, newInterviewQuestion()] })}><IPlus size={18} /><span>Add interview question</span></button>
+              </>
+            )}
+          </>
+        )}
 
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Add several questions at once</h2>
-            <p>Paste a list, or dictate it. End each question with a question mark or say “next question” between them. Answer types are chosen for you and can be changed.</p>
-          </div>
-          <VoiceField multiline rows={4} value={bulk} onChange={setBulk}
-            placeholder={"What's your full name?\nWhy do you want to join the team?\nAre you available on weekends?"} aria-label="Questions to add" />
-          <div className="row-end">
-            <button className="btn" disabled={!bulk.trim()} onClick={() => { addQs(splitQuestions(bulk)); setBulk(""); }}>
-              <IPlus size={16} /><span>Add {splitQuestions(bulk).length || ""} question{splitQuestions(bulk).length === 1 ? "" : "s"}</span>
-            </button>
-          </div>
-        </section>
+        {tab === "responses" && <FormResponses formId={form.id} title={form.title} />}
       </main>
 
       {sharing && (
         <div className="dialog-backdrop" onClick={() => setSharing(false)}>
           <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="share-title" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-head">
-              <h2 id="share-title">Share “{form.title}”</h2>
+              <h2 id="share-title">Send form</h2>
               <button className="icon-btn" onClick={() => setSharing(false)} aria-label="Close"><IX size={18} /></button>
             </div>
-            <p className="muted">Anyone with this link can answer. They don't need an account or an app.</p>
             <div className="link-field">
               <input className="field" readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Form link" />
               <CopyButton text={link} label="Copy link" className="btn btn-primary" />
             </div>
             <div className="share-grid">
-              <a className="send-row" href={whatsappLink("", invite)} target="_blank" rel="noreferrer">
-                <IChat size={20} /><span><strong>WhatsApp</strong><small>Send to a person or group</small></span>
-              </a>
-              <a className="send-row" href={`mailto:?subject=${encodeURIComponent(form.title)}&body=${encodeURIComponent(invite)}`}>
-                <IMail size={20} /><span><strong>Email</strong><small>Send from your mail app</small></span>
-              </a>
-              <a className="send-row" href={link} target="_blank" rel="noreferrer">
-                <IEye size={20} /><span><strong>Open form</strong><small>See exactly what applicants see</small></span>
-              </a>
+              <a className="send-row" href={whatsappLink("", invite)} target="_blank" rel="noreferrer"><IChat size={20} /><span><strong>Share on WhatsApp</strong></span></a>
+              <a className="send-row" href={`mailto:?subject=${encodeURIComponent(form.title)}&body=${encodeURIComponent(invite)}`}><IMail size={20} /><span><strong>Share by email</strong></span></a>
             </div>
-            {!form.owner?.whatsapp && !form.owner?.email && (
-              <p className="dialog-warn">Add a WhatsApp number or email under Delivery so applicants can send their answers straight to you.</p>
-            )}
+            <div className="dialog-section">
+              <p className="e-label">Where should answers come to you?</p>
+              <div className="grid-2 is-tight">
+                <input className="field" type="tel" value={form.owner?.whatsapp || ""} placeholder="Your WhatsApp number"
+                  onChange={(e) => update({ owner: { ...form.owner, whatsapp: e.target.value } })} aria-label="Your WhatsApp number" />
+                <input className="field" type="email" value={form.owner?.email || ""} placeholder="Your email"
+                  onChange={(e) => update({ owner: { ...form.owner, email: e.target.value } })} aria-label="Your email" />
+              </div>
+              <input className="field" value={form.owner?.name || ""} placeholder="Your name or company (shown on the form)"
+                onChange={(e) => update({ owner: { ...form.owner, name: e.target.value } })} aria-label="Your name or company" />
+            </div>
           </div>
         </div>
       )}
