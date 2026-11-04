@@ -4,13 +4,13 @@
 // starters: tap-to-start phrases for long answers, so nobody stares at an empty box.
 
 export const TYPES = [
-  { id: "short", label: "Short answer", icon: "✏️" },
-  { id: "long", label: "Long answer", icon: "📝" },
-  { id: "choice", label: "Pick one", icon: "🔘" },
-  { id: "multi", label: "Pick several", icon: "☑️" },
-  { id: "yesno", label: "Yes / No", icon: "👍" },
-  { id: "rating", label: "Rating 1–5", icon: "⭐" },
-  { id: "date", label: "Date", icon: "📅" },
+  { id: "short", label: "Short answer" },
+  { id: "long", label: "Paragraph" },
+  { id: "choice", label: "Single choice" },
+  { id: "multi", label: "Multiple choice" },
+  { id: "yesno", label: "Yes or no" },
+  { id: "rating", label: "Scale 1–5" },
+  { id: "date", label: "Date" },
 ];
 
 const contact = [
@@ -22,10 +22,10 @@ const contact = [
 export const TEMPLATES = [
   {
     id: "interview",
-    icon: "🎤",
-    title: "Interview questions",
-    blurb: "Screen candidates before you meet them. They just talk.",
-    intro: "Answer like you're talking to us in person — tap the mic and speak. There are no trick questions.",
+    category: "Hiring",
+    title: "Screening interview",
+    blurb: "First-round questions candidates answer in their own words, before you schedule a call.",
+    intro: "Answer as you would in person. You can record each answer or type it, and change anything before you send.",
     questions: [
       ...contact,
       { type: "short", text: "Which role are you interviewing for?", required: true },
@@ -42,10 +42,10 @@ export const TEMPLATES = [
   },
   {
     id: "job",
-    icon: "💼",
+    category: "Hiring",
     title: "Job application",
-    blurb: "Collect applications without making people type an essay.",
-    intro: "Apply in a few minutes. Speak your answers or tap — your info can fill itself in.",
+    blurb: "Role, experience, tools and portfolio in one short application.",
+    intro: "This takes about five minutes. Your contact details can fill in automatically.",
     questions: [
       ...contact,
       { type: "short", text: "Which city do you live in?", autofill: "location" },
@@ -59,10 +59,10 @@ export const TEMPLATES = [
   },
   {
     id: "scholarship",
-    icon: "🎓",
-    title: "School / scholarship application",
-    blurb: "Personal statements spoken, not typed.",
-    intro: "Take your time. You can speak each answer and fix any words after.",
+    category: "Education",
+    title: "Scholarship application",
+    blurb: "Personal statements applicants can speak first and edit after.",
+    intro: "Take your time. Record or type each answer, then read it back before you submit.",
     questions: [
       ...contact,
       { type: "short", text: "Name of your current school", required: true },
@@ -76,10 +76,10 @@ export const TEMPLATES = [
   },
   {
     id: "brief",
-    icon: "🎬",
-    title: "Creative client brief",
-    blurb: "For studios: clients describe their project out loud.",
-    intro: "Tell us about your brand and what you need. Just talk — we'll handle the rest.",
+    category: "Studios & agencies",
+    title: "Client brief",
+    blurb: "Clients describe their brand, audience, budget and deadline before the first meeting.",
+    intro: "Tell us about your brand and what you need. Speak freely — we read every answer before we reply.",
     questions: [
       { type: "short", text: "Your name", required: true, autofill: "name" },
       { type: "short", text: "Business or brand name", required: true },
@@ -94,16 +94,16 @@ export const TEMPLATES = [
   },
   {
     id: "event",
-    icon: "🎟️",
-    title: "Event sign-up",
-    blurb: "Quick RSVP with tap answers.",
-    intro: "Sign up in under a minute.",
+    category: "Events",
+    title: "Event registration",
+    blurb: "Attendance, guests and session interest in under a minute.",
+    intro: "Register in under a minute.",
     questions: [
       ...contact.slice(0, 2),
       { type: "yesno", text: "Will you attend?", required: true },
       { type: "choice", text: "How many people are you bringing?", options: ["Just me", "+1", "+2", "+3 or more"] },
       { type: "multi", text: "Which sessions interest you?", options: ["Talks", "Workshop", "Networking", "Showcase"] },
-      { type: "rating", text: "How excited are you? (1–5)" },
+      { type: "rating", text: "How likely are you to attend every session?" },
       { type: "short", text: "Any food allergies or needs?" },
     ],
   },

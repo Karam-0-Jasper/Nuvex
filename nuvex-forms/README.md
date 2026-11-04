@@ -1,4 +1,4 @@
-# Nuvex Forms — forms you can just talk to
+# Nuvex Forms — applications people actually finish
 
 A replacement for the Google Docs / Google Forms way of sending interview questions and applications.
 You make the questions once and share a link. People answer by **talking, tapping, or reusing what they already said**, so nobody has to type an essay on their phone.
@@ -21,6 +21,15 @@ You make the questions once and share a link. People answer by **talking, tappin
 - Every field in the builder has a mic too.
 - Share by link or WhatsApp. No account needed, for you or for them.
 - **Inbox.** Open the answers link someone sends you and the answers are saved. Read them neatly, or download a spreadsheet (CSV) for each form.
+
+## Design
+
+One deliberate system, no decoration:
+
+- **Type:** Newsreader (editorial serif) for anything people read — questions, titles. Geist for the interface, Geist Mono for labels and counters.
+- **Colour:** warm paper and ink, one forest-green accent for state, red only for recording. Full dark mode.
+- **Form:** hairline rules instead of shadows and bubbles, one question per screen, keyboard shortcuts (Enter to continue, A–J to choose, Y/N, 1–5), a record button with a running timer.
+- **Icons:** one line-icon set. No emoji anywhere.
 
 ## How it works (no server yet)
 The whole form is packed into the link itself. The answers come back the same way, as a link in the WhatsApp or email message.
