@@ -1,5 +1,5 @@
 // Starter forms. Every question can be edited.
-// Question types: short, long, choice (pick one), multi (pick several), yesno, rating, date.
+// Question types: short, long, choice, multi, dropdown, file, rating, yesno, date — plus "section" items that start a new page.
 // autofill: name | email | phone | location | link — filled in for people who have applied before on the same device.
 // interview.questions[].expect: what a good answer includes. Only the form owner sees this; the AI uses it to score.
 
@@ -8,10 +8,15 @@ export const TYPES = [
   { id: "long", label: "Paragraph" },
   { id: "choice", label: "Multiple choice" },
   { id: "multi", label: "Checkboxes" },
+  { id: "dropdown", label: "Dropdown" },
+  { id: "file", label: "File upload" },
+  { id: "rating", label: "Linear scale" },
   { id: "yesno", label: "Yes or no" },
-  { id: "rating", label: "Scale 1–5" },
   { id: "date", label: "Date" },
 ];
+
+/** Question types that have a list of options. */
+export const HAS_OPTIONS = ["choice", "multi", "dropdown"];
 
 const contact = [
   { type: "short", text: "Full name", required: true, autofill: "name" },
@@ -27,6 +32,7 @@ export const TEMPLATES = [
     questions: [
       ...contact,
       { type: "choice", text: "Which position are you applying for?", required: true, options: ["Video editor", "Photographer", "Social media manager", "Graphic designer", "Other"] },
+      { type: "file", text: "Upload your CV", hint: "PDF, Word or image, up to 10 MB." },
       { type: "short", text: "Link to your portfolio or past work", autofill: "link" },
       { type: "long", text: "Tell us about a project you're proud of." },
       { type: "date", text: "When can you start?" },

@@ -4,13 +4,23 @@ import { InterviewReport } from "./Interview.jsx";
 import { CopyButton, timeAgo } from "./ui.jsx";
 import { IDownload, ITrash } from "./icons.jsx";
 
+/** Show links in answers (uploaded files) as clickable links. */
+function Linkified({ text }) {
+  const parts = String(text).split(/(https?:\/\/\S+)/g);
+  return parts.map((p, i) => {
+    if (!/^https?:\/\//.test(p)) return p.replace(/ — $/, "");
+    const isFile = /\/storage\/v1\/object\/public\//.test(p);
+    return <a key={i} className="ans-link" href={p} target="_blank" rel="noreferrer">{isFile ? "Open file" : p}</a>;
+  });
+}
+
 export function AnswerList({ answers }) {
   return (
     <dl className="answers">
       {answers.map(([q, a], i) => (
         <div className="answers-row" key={i}>
           <dt>{q}</dt>
-          <dd className={a ? "" : "muted"}>{a || "No answer"}</dd>
+          <dd className={a ? "" : "muted"}>{a ? <Linkified text={a} /> : "No answer"}</dd>
         </div>
       ))}
     </dl>
