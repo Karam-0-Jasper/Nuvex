@@ -50,8 +50,10 @@ export function publicForm(form) {
     ...(form.interview?.enabled && form.interview.questions?.some((q) => q.text?.trim())
       ? { interview: { enabled: true, seconds: form.interview.seconds || 120, questions: form.interview.questions.filter((q) => q.text?.trim()).map(({ id, text }) => ({ id, text: text.trim() })) } }
       : {}),
-    questions: form.questions.map(({ id, type, text, hint, options, required, autofill, starters }) => {
+    questions: form.questions.map(({ id, type, text, hint, options, required, autofill, starters, other, shuffle }) => {
       const q = { id, type, text };
+      if (other) q.other = true;
+      if (shuffle) q.shuffle = true;
       if (hint) q.hint = hint;
       if (options?.length) q.options = options;
       if (required) q.required = true;

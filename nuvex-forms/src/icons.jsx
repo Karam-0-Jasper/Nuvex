@@ -31,3 +31,6 @@ export const IDuplicate = (p) => <S {...p}><rect x="8" y="8" width="12" height="
 export const IShare = (p) => <S {...p}><path d="M12 15V3M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></S>;
 export const IReturn = (p) => <S {...p}><path d="M20 5v7a3 3 0 0 1-3 3H5M9 11l-4 4 4 4" /></S>;
 export const IPen = (p) => <S {...p}><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></S>;
+export const IUpload = (p) => <S {...p}><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></S>;
+export const ISection = (p) => <S {...p}><rect x="3" y="4" width="18" height="6" rx="1.5" /><rect x="3" y="14" width="18" height="6" rx="1.5" /></S>;
+export const IShuffle = (p) => <S {...p}><path d="M4 7h3c4 0 6 10 10 10h3M17 14l3 3-3 3M4 17h3c1.6 0 2.8-1.6 3.9-3.6M13.1 9.6C14.2 8.4 15.4 7 17 7h3M17 4l3 3-3 3" /></S>;

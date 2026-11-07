@@ -1,24 +1,27 @@
 // The form editor: Questions, Interview and Responses — like Google Forms. Saves automatically.
 import { useEffect, useRef, useState } from "react";
-import { TYPES } from "./templates.js";
+import { HAS_OPTIONS, TYPES } from "./templates.js";
+import { uploadsReady } from "./upload.js";
 import { formLink, guessAutofill, loadInbox, saveForm, uid } from "./store.js";
 import FormResponses from "./Responses.jsx";
 import { CopyButton, Switch, useAutoGrow, whatsappLink } from "./ui.jsx";
-import { IArrowDown, IArrowLeft, IArrowUp, IChat, IEye, IMail, IPlus, ITrash, IX } from "./icons.jsx";
+import { IArrowDown, IArrowLeft, IArrowUp, IChat, IDuplicate, IEye, IMail, IPlus, ISection, IShuffle, ITrash, IX } from "./icons.jsx";
 
 export function newQuestion(text = "", type = "short") {
   const q = { id: uid(), type, text, options: [], required: false, autofill: guessAutofill(text) };
-  if (type === "choice" || type === "multi") q.options = ["Option 1"];
+  if (HAS_OPTIONS.includes(type)) q.options = ["Option 1"];
   return q;
 }
+const newSection = () => ({ id: uid(), type: "section", text: "", hint: "" });
 const newInterviewQuestion = () => ({ id: uid(), text: "", expect: "" });
 
 function problems(form) {
   if (!form.title.trim()) return "Give your form a title.";
-  if (!form.questions.length) return "Add at least one question.";
-  const bad = form.questions.findIndex((q) => !q.text.trim());
+  const qs = form.questions.filter((q) => q.type !== "section");
+  if (!qs.length) return "Add at least one question.";
+  const bad = qs.findIndex((q) => !q.text.trim());
   if (bad >= 0) return `Question ${bad + 1} is empty.`;
-  const noOpts = form.questions.findIndex((q) => (q.type === "choice" || q.type === "multi") && q.options.filter((o) => o.trim()).length < 2);
+  const noOpts = qs.findIndex((q) => HAS_OPTIONS.includes(q.type) && q.options.filter((o) => o.trim()).length + (q.other ? 1 : 0) < 2);
   if (noOpts >= 0) return `Question ${noOpts + 1} needs at least two options.`;
   if (form.interview?.enabled && !form.interview.questions?.some((q) => q.text.trim())) return "Add at least one interview question, or turn the interview off.";
   return "";
@@ -51,6 +54,11 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
 
   const update = (patch) => setForm((f) => ({ ...f, ...patch }));
   const setQ = (id, patch) => setForm((f) => ({ ...f, questions: f.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)) }));
+  const duplicateQ = (i) => setForm((f) => {
+    const qs = [...f.questions];
+    qs.splice(i + 1, 0, { ...qs[i], id: uid(), options: [...(qs[i].options || [])] });
+    return { ...f, questions: qs };
+  });
   const removeQ = (id) => setForm((f) => ({ ...f, questions: f.questions.filter((q) => q.id !== id) }));
   const moveQ = (i, d) => setForm((f) => {
     const qs = [...f.questions];
@@ -104,53 +112,101 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
               <AutoText className="e-desc" value={form.intro} onChange={(v) => update({ intro: v })} placeholder="Form description" label="Form description" />
             </section>
 
-            {form.questions.map((q, i) => (
-              <section className="e-card" key={q.id}>
-                <div className="e-row">
-                  <AutoText className="e-q" value={q.text} placeholder="Question" label={`Question ${i + 1}`}
-                    onChange={(v) => setQ(q.id, { text: v, ...(q.autofillTouched ? {} : { autofill: guessAutofill(v) }) })} />
-                  <select className="select is-type" value={q.type} aria-label="Question type"
-                    onChange={(e) => {
-                      const type = e.target.value;
-                      setQ(q.id, { type, ...((type === "choice" || type === "multi") && !q.options.filter(Boolean).length ? { options: ["Option 1"] } : {}) });
-                    }}>
-                    {TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-                  </select>
-                </div>
-
-                {(q.type === "choice" || q.type === "multi") && (
-                  <div className="e-opts">
-                    {q.options.map((o, oi) => (
-                      <div className="e-opt" key={oi}>
-                        <span className={`opt-mark ${q.type === "multi" ? "is-square" : ""}`} />
-                        <input className="e-opt-input" value={o} placeholder={`Option ${oi + 1}`} aria-label={`Option ${oi + 1}`}
-                          onChange={(e) => setQ(q.id, { options: q.options.map((x, xi) => (xi === oi ? e.target.value : x)) })}
-                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setQ(q.id, { options: [...q.options, ""] }); } }} />
-                        <button className="icon-btn" onClick={() => setQ(q.id, { options: q.options.filter((_, xi) => xi !== oi) })} aria-label="Remove option"><IX size={15} /></button>
-                      </div>
-                    ))}
-                    <button className="e-add-opt" onClick={() => setQ(q.id, { options: [...q.options, ""] })}>
-                      <span className={`opt-mark ${q.type === "multi" ? "is-square" : ""}`} />Add option
-                    </button>
-                  </div>
-                )}
-                {q.type === "short" && <p className="e-sample">Short answer text</p>}
-                {q.type === "long" && <p className="e-sample">Long answer text</p>}
-                {q.type === "yesno" && <p className="e-sample">Yes / No</p>}
-                {q.type === "rating" && <p className="e-sample">1 · 2 · 3 · 4 · 5</p>}
-                {q.type === "date" && <p className="e-sample">Day, month, year</p>}
-
+            {form.questions.map((q, i) => {
+              const foot = (
                 <div className="e-foot">
                   <button className="icon-btn" onClick={() => moveQ(i, -1)} disabled={i === 0} aria-label="Move up" title="Move up"><IArrowUp size={16} /></button>
                   <button className="icon-btn" onClick={() => moveQ(i, 1)} disabled={i === form.questions.length - 1} aria-label="Move down" title="Move down"><IArrowDown size={16} /></button>
-                  <button className="icon-btn is-danger" onClick={() => removeQ(q.id)} aria-label="Delete question" title="Delete"><ITrash size={16} /></button>
-                  <span className="e-divider" />
-                  <Switch checked={q.required} onChange={(v) => setQ(q.id, { required: v })} label="Required" />
+                  {q.type !== "section" && <button className="icon-btn" onClick={() => duplicateQ(i)} aria-label="Duplicate" title="Duplicate"><IDuplicate size={16} /></button>}
+                  <button className="icon-btn is-danger" onClick={() => removeQ(q.id)} aria-label={q.type === "section" ? "Delete section" : "Delete question"} title="Delete"><ITrash size={16} /></button>
+                  {q.type !== "section" && (
+                    <>
+                      {HAS_OPTIONS.includes(q.type) && (
+                        <button className={`icon-btn ${q.shuffle ? "is-on" : ""}`} aria-pressed={!!q.shuffle} onClick={() => setQ(q.id, { shuffle: !q.shuffle })}
+                          aria-label="Shuffle option order" title={q.shuffle ? "Options are shuffled for each applicant" : "Shuffle option order"}><IShuffle size={16} /></button>
+                      )}
+                      <span className="e-divider" />
+                      <Switch checked={q.required} onChange={(v) => setQ(q.id, { required: v })} label="Required" />
+                    </>
+                  )}
                 </div>
-              </section>
-            ))}
+              );
 
-            <button className="e-add" onClick={() => update({ questions: [...form.questions, newQuestion()] })}><IPlus size={18} /><span>Add question</span></button>
+              if (q.type === "section") {
+                const n = form.questions.slice(0, i + 1).filter((x) => x.type === "section").length + 1;
+                const total = form.questions.filter((x) => x.type === "section").length + 1;
+                return (
+                  <div className="e-section" key={q.id}>
+                    <p className="e-section-tag">Section {n} of {total}</p>
+                    <section className="e-card e-head">
+                      <AutoText className="e-title is-section" value={q.text} placeholder="Untitled section" label={`Section ${n} title`} onChange={(v) => setQ(q.id, { text: v })} />
+                      <AutoText className="e-desc" value={q.hint} placeholder="Description (optional)" label={`Section ${n} description`} onChange={(v) => setQ(q.id, { hint: v })} />
+                      {foot}
+                    </section>
+                  </div>
+                );
+              }
+
+              const mark = (oi) => (q.type === "dropdown" ? <span className="opt-num">{oi + 1}.</span> : <span className={`opt-mark ${q.type === "multi" ? "is-square" : ""}`} />);
+              return (
+                <section className="e-card" key={q.id}>
+                  <div className="e-row">
+                    <AutoText className="e-q" value={q.text} placeholder="Question" label={`Question ${i + 1}`}
+                      onChange={(v) => setQ(q.id, { text: v, ...(q.autofillTouched ? {} : { autofill: guessAutofill(v) }) })} />
+                    <select className="select is-type" value={q.type} aria-label="Question type"
+                      onChange={(e) => {
+                        const type = e.target.value;
+                        setQ(q.id, { type, ...(HAS_OPTIONS.includes(type) && !q.options.filter(Boolean).length ? { options: ["Option 1"] } : {}) });
+                      }}>
+                      {TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </select>
+                  </div>
+
+                  {HAS_OPTIONS.includes(q.type) && (
+                    <div className="e-opts">
+                      {q.options.map((o, oi) => (
+                        <div className="e-opt" key={oi}>
+                          {mark(oi)}
+                          <input className="e-opt-input" value={o} placeholder={`Option ${oi + 1}`} aria-label={`Option ${oi + 1}`}
+                            onChange={(e) => setQ(q.id, { options: q.options.map((x, xi) => (xi === oi ? e.target.value : x)) })}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setQ(q.id, { options: [...q.options, ""] }); } }} />
+                          <button className="icon-btn" onClick={() => setQ(q.id, { options: q.options.filter((_, xi) => xi !== oi) })} aria-label="Remove option"><IX size={15} /></button>
+                        </div>
+                      ))}
+                      {q.other && (
+                        <div className="e-opt">
+                          {mark(q.options.length)}
+                          <span className="e-opt-other">Other…</span>
+                          <button className="icon-btn" onClick={() => setQ(q.id, { other: false })} aria-label="Remove Other"><IX size={15} /></button>
+                        </div>
+                      )}
+                      <div className="e-add-opt">
+                        {mark(q.options.length + (q.other ? 1 : 0))}
+                        <button className="e-add-link" onClick={() => setQ(q.id, { options: [...q.options, ""] })}>Add option</button>
+                        {!q.other && <><span className="muted">or</span><button className="e-add-link is-accent" onClick={() => setQ(q.id, { other: true })}>add "Other"</button></>}
+                      </div>
+                    </div>
+                  )}
+                  {q.type === "short" && <p className="e-sample">Short answer text</p>}
+                  {q.type === "long" && <p className="e-sample">Long answer text</p>}
+                  {q.type === "yesno" && <p className="e-sample">Yes / No</p>}
+                  {q.type === "rating" && <p className="e-sample">1 · 2 · 3 · 4 · 5</p>}
+                  {q.type === "date" && <p className="e-sample">Day, month, year</p>}
+                  {q.type === "file" && (
+                    <>
+                      <p className="e-sample">Applicants upload one file — PDF, Word or image, up to 10 MB</p>
+                      {!uploadsReady() && <p className="e-warn">File uploads aren't connected yet, so applicants will see a message instead of the upload button.</p>}
+                    </>
+                  )}
+                  {foot}
+                </section>
+              );
+            })}
+
+            <div className="e-add-row">
+              <button className="e-add" onClick={() => update({ questions: [...form.questions, newQuestion()] })}><IPlus size={18} /><span>Add question</span></button>
+              <button className="e-add" onClick={() => update({ questions: [...form.questions, newSection()] })}><ISection size={18} /><span>Add section</span></button>
+            </div>
           </>
         )}
 
