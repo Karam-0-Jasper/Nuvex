@@ -6,6 +6,7 @@ import { getForm, updateInbox } from "./store.js";
 import { countFaces, createMonitor, integrityFlags, loadFaceDetector } from "./proctor.js";
 import { appendText, clock, useElapsed } from "./ui.jsx";
 import { IArrowRight } from "./icons.jsx";
+import { themeStyle } from "./templates.js";
 
 const API = "/api/interview";
 export async function callApi(body, ms = 15000) {
@@ -212,7 +213,7 @@ export default function Interview({ form, name = "", preview = false, onExit, on
   if (phase === "ready") {
     const faceText = { checking: "Checking camera…", ok: "Camera ready", none: "We can't see your face — sit facing the camera", multiple: "Only you should be in view", unavailable: "Camera ready" }[faceState];
     return (
-      <div className="f-page">
+      <div className="f-page" style={themeStyle(form)}>
         {PreviewBar}
         <main className="f-main">
           <div className="f-card f-head">
@@ -252,7 +253,7 @@ export default function Interview({ form, name = "", preview = false, onExit, on
   const R = 22, C = 2 * Math.PI * R;
 
   return (
-    <div className="iv-page">
+    <div className="iv-page" style={themeStyle(form)}>
       <header className="iv-top">
         <span className="fill-owner">{form.title}</span>
         <span className="iv-live"><span className="rec-dot is-live" /><span>Live</span><span className="iv-clock">{clock(elapsed)}</span></span>

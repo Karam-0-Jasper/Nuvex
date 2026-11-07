@@ -46,6 +46,7 @@ export function publicForm(form) {
     title: form.title,
     intro: form.intro || "",
     owner: form.owner || {},
+    ...(form.theme ? { theme: form.theme } : {}),
     // Interview questions travel without the owner's expected answers, so applicants can't read them.
     ...(form.interview?.enabled && form.interview.questions?.some((q) => q.text?.trim())
       ? { interview: { enabled: true, seconds: form.interview.seconds || 120, questions: form.interview.questions.filter((q) => q.text?.trim()).map(({ id, text }) => ({ id, text: text.trim() })) } }

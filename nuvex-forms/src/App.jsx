@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Builder, { newQuestion } from "./Builder.jsx";
 import Fill from "./Fill.jsx";
 import { ResponseDetail } from "./Responses.jsx";
-import { TEMPLATES } from "./templates.js";
+import { TEMPLATES, THEMES, themeOf } from "./templates.js";
 import { addToInbox, deleteForm, formLink, getForm, loadForms, loadInbox, publicForm, saveForm, uid, unpack } from "./store.js";
 import { CopyButton, MicButton, appendText, timeAgo } from "./ui.jsx";
 import { draftForm } from "./assist.js";
@@ -118,18 +118,21 @@ function Describe() {
   };
   return (
     <form className="describe" onSubmit={create}>
-      <label className="describe-label" htmlFor="describe">Describe your form</label>
+      <p className="describe-hello">Hello there</p>
+      <label className="describe-label" htmlFor="describe">What would you like to <em>make</em> today?</label>
       <div className="describe-box">
         <input id="describe" value={text} onChange={(e) => setText(e.target.value)} disabled={busy}
-          placeholder="e.g. Tryouts for our under-17 football team" autoComplete="off" />
+          placeholder="Describe your form in a sentence…" autoComplete="off" />
         <MicButton onText={(t) => setText((v) => appendText(v, t))} label="Say it" />
         <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy}>
           <span>{busy ? "Building…" : "Create"}</span>{!busy && <IArrowRight size={16} />}
         </button>
       </div>
       <p className="describe-hint">
-        We add the usual questions (name, email, phone) and the ones your topic needs — you can change anything. Try:{" "}
-        {EXAMPLES.map((x, i) => <button type="button" key={x} className="text-btn" onClick={() => setText(x)}>{x}{i < EXAMPLES.length - 1 ? "," : ""}</button>)}
+        We'll add the usual questions and the ones your topic needs. You can change anything after.
+      </p>
+      <p className="describe-examples">
+        {EXAMPLES.map((x) => <button type="button" key={x} className="example-chip" onClick={() => setText(x)}>{x}</button>)}
       </p>
     </form>
   );
@@ -150,8 +153,8 @@ function Home() {
               <span className="tile-art is-blank"><IPlus size={30} /></span>
               <span className="tile-name">Blank form</span>
             </a>
-            {TEMPLATES.map((t) => (
-              <a className="tile" key={t.id} href={`#/new/${t.id}`}>
+            {TEMPLATES.map((t, i) => (
+              <a className="tile" key={t.id} href={`#/new/${t.id}`} style={{ "--theme": THEMES[i % THEMES.length].c, "--theme-soft": THEMES[i % THEMES.length].soft }}>
                 <span className="tile-art">
                   <span className="tile-line is-title" />
                   {t.questions.slice(0, 3).map((q, i) => <span key={i} className="tile-line" />)}
@@ -171,8 +174,8 @@ function Home() {
         ) : (
           <div className="table">
             {forms.map((f) => (
-              <div className="table-row is-forms" key={f.id}>
-                <a className="table-title" href={`#/edit/${f.id}`}>{f.title || "Untitled form"}{f.interview?.enabled && <span className="tag">Interview</span>}</a>
+              <div className="table-row is-forms" key={f.id} style={{ "--theme": themeOf(f).c, "--theme-soft": themeOf(f).soft }}>
+                <a className="table-title" href={`#/edit/${f.id}`}><span className="form-dot" aria-hidden="true">{(f.title || "U").trim().charAt(0).toUpperCase()}</span>{f.title || "Untitled form"}{f.interview?.enabled && <span className="tag">Interview</span>}</a>
                 <span className="muted">{counts[f.id] || 0} response{counts[f.id] === 1 ? "" : "s"}</span>
                 <span className="muted hide-sm">{f.updated ? `Edited ${timeAgo(f.updated)}` : ""}</span>
                 <span className="table-actions">

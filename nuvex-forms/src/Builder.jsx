@@ -1,6 +1,6 @@
 // The form editor: Questions, Interview and Responses — like Google Forms. Saves automatically.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { HAS_OPTIONS, TYPES } from "./templates.js";
+import { HAS_OPTIONS, THEMES, TYPES, themeOf, themeStyle } from "./templates.js";
 import { uploadsReady } from "./upload.js";
 import { suggestOptions, suggestionsFor, toQuestions } from "./assist.js";
 import { formLink, guessAutofill, loadInbox, saveForm, uid } from "./store.js";
@@ -99,7 +99,7 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
   const invite = `${form.title}\n\nApply here:\n${link}`;
 
   return (
-    <div className="editor-page">
+    <div className="editor-page" style={themeStyle(form)}>
       <header className="editor-bar">
         <div className="editor-bar-inner">
           <button className="icon-btn" onClick={onBack} aria-label="Back to forms" title="Back to forms"><IArrowLeft size={18} /></button>
@@ -123,6 +123,14 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
             <section className="e-card e-head">
               <AutoText className="e-title" value={form.title} onChange={(v) => update({ title: v })} placeholder="Untitled form" label="Form title" />
               <AutoText className="e-desc" value={form.intro} onChange={(v) => update({ intro: v })} placeholder="Form description" label="Form description" />
+              <div className="e-themes" role="radiogroup" aria-label="Form colour">
+                <span className="e-themes-label">Colour</span>
+                {THEMES.map((t) => (
+                  <button key={t.id} type="button" role="radio" aria-checked={themeOf(form).id === t.id} aria-label={t.label} title={t.label}
+                    className={`e-swatch ${themeOf(form).id === t.id ? "is-on" : ""}`} style={{ "--sw": t.c, "--sw-soft": t.soft }}
+                    onClick={() => update({ theme: t.id })} />
+                ))}
+              </div>
               {form.draftedBy && (
                 <p className="e-drafted">
                   <span>Made from “{form.description}” — {form.draftedBy.toLowerCase()}. Change anything you like.</span>
@@ -168,7 +176,7 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
 
               const mark = (oi) => (q.type === "dropdown" ? <span className="opt-num">{oi + 1}.</span> : <span className={`opt-mark ${q.type === "multi" ? "is-square" : ""}`} />);
               return (
-                <section className="e-card" key={q.id}>
+                <section className="e-card e-qcard" key={q.id}>
                   <div className="e-row">
                     <AutoText className="e-q" value={q.text} placeholder="Question" label={`Question ${i + 1}`}
                       onChange={(v) => setQ(q.id, { text: v, ...(q.autofillTouched ? {} : { autofill: guessAutofill(v) }) })} />
