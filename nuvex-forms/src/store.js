@@ -108,6 +108,8 @@ export const saveProfile = (p) => write("nf.profile", p);
 /** Guess if a question is asking for one of the "My info" fields. */
 export function guessAutofill(text) {
   const t = norm(text);
+  // Someone else's details (a parent, an emergency contact, a referee) must never be filled with the applicant's own.
+  if (/\b(parent|guardian|emergency|reference|referee|next of kin|coach|manager s|employer s)\b/.test(t)) return "";
   if (/\b(e ?mail)\b/.test(t)) return "email";
   if (/\b(phone|whatsapp|mobile|cell|contact number)\b/.test(t)) return "phone";
   if (/\b(website|portfolio|linkedin|instagram|link)\b/.test(t)) return "link";

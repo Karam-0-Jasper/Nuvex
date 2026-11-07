@@ -4,8 +4,9 @@ import Fill from "./Fill.jsx";
 import { ResponseDetail } from "./Responses.jsx";
 import { TEMPLATES } from "./templates.js";
 import { addToInbox, deleteForm, formLink, getForm, loadForms, loadInbox, publicForm, saveForm, uid, unpack } from "./store.js";
-import { CopyButton, timeAgo } from "./ui.jsx";
-import { IPlus, ITrash } from "./icons.jsx";
+import { CopyButton, MicButton, appendText, timeAgo } from "./ui.jsx";
+import { draftForm } from "./assist.js";
+import { IArrowRight, IPlus, ITrash } from "./icons.jsx";
 
 function fromTemplate(tid) {
   const t = TEMPLATES.find((x) => x.id === tid);
@@ -99,6 +100,41 @@ function Broken() {
   );
 }
 
+const EXAMPLES = ["Tryouts for our under-17 football team", "Hiring a video editor for our studio", "Registration for a weekend photography workshop"];
+
+/** One sentence in, a ready form out. */
+function Describe() {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const create = async (e) => {
+    e?.preventDefault();
+    const d = text.trim();
+    if (!d || busy) return;
+    setBusy(true);
+    const draft = await draftForm(d);
+    const f = { id: uid(), title: draft.title, intro: draft.intro, description: d, draftedBy: draft.source, owner: {}, questions: draft.questions };
+    saveForm(f);
+    go(`#/edit/${f.id}`);
+  };
+  return (
+    <form className="describe" onSubmit={create}>
+      <label className="describe-label" htmlFor="describe">Describe your form</label>
+      <div className="describe-box">
+        <input id="describe" value={text} onChange={(e) => setText(e.target.value)} disabled={busy}
+          placeholder="e.g. Tryouts for our under-17 football team" autoComplete="off" />
+        <MicButton onText={(t) => setText((v) => appendText(v, t))} label="Say it" />
+        <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy}>
+          <span>{busy ? "Building…" : "Create"}</span>{!busy && <IArrowRight size={16} />}
+        </button>
+      </div>
+      <p className="describe-hint">
+        We add the usual questions (name, email, phone) and the ones your topic needs — you can change anything. Try:{" "}
+        {EXAMPLES.map((x, i) => <button type="button" key={x} className="text-btn" onClick={() => setText(x)}>{x}{i < EXAMPLES.length - 1 ? "," : ""}</button>)}
+      </p>
+    </form>
+  );
+}
+
 function Home() {
   const [forms, setForms] = useState(loadForms);
   const counts = useMemo(() => loadInbox().reduce((m, r) => ((m[r.formId] = (m[r.formId] || 0) + 1), m), {}), []);
@@ -107,7 +143,8 @@ function Home() {
     <>
       <section className="start">
         <div className="start-inner">
-          <h2 className="start-h">Start a new form</h2>
+          <Describe />
+          <h2 className="start-h">Or start from a template</h2>
           <div className="tiles">
             <a className="tile" href="#/new/blank">
               <span className="tile-art is-blank"><IPlus size={30} /></span>

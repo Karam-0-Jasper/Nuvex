@@ -852,6 +852,31 @@ a.table-title:hover { text-decoration: underline; text-underline-offset: 4px; }
   .f-select { width: 100%; }
 }
 
+/* ---------- Describe your form ---------- */
+
+.describe { margin-bottom: 28px; }
+.describe-label { display: block; font: 400 26px/1.2 var(--serif); margin-bottom: 12px; }
+.describe-box { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; padding: 6px 6px 6px 16px; box-shadow: 0 12px 30px -18px rgba(22, 22, 26, 0.3); }
+.describe-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.describe-box input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font-size: 16px; height: 44px; }
+.describe-box .mic-inline { position: static; transform: none; }
+.describe-hint { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.describe-hint .text-btn { font-size: 13px; font-weight: 400; color: var(--ink-2); margin-left: 4px; }
+.e-drafted { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; color: var(--ink-2); }
+.e-drafted span { flex: 1; }
+.e-suggest { margin-top: 20px; }
+.e-suggest-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.e-suggest .chip { height: auto; min-height: 34px; padding: 6px 12px; text-align: left; }
+.e-add-link:disabled { opacity: 0.5; }
+.e-add-opt { flex-wrap: wrap; }
+
+@media (max-width: 680px) {
+  .describe-label { font-size: 22px; }
+  .describe-box { flex-wrap: wrap; padding: 6px; }
+  .describe-box input { flex-basis: 100%; padding: 0 8px; }
+  .describe-box .btn-primary { flex: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
