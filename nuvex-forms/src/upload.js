@@ -21,7 +21,7 @@ export async function uploadFile(file) {
   const path = `uploads/${uid()}${uid()}/${file.name.replace(/[^\w.\-]+/g, "_").slice(-80)}`;
   const res = await fetch(`${UPLOADS.url}/storage/v1/object/${UPLOADS.bucket}/${path}`, {
     method: "POST",
-    headers: { apikey: UPLOADS.key, Authorization: `Bearer ${UPLOADS.key}`, "content-type": TYPES[ext], "x-upsert": "false" },
+    headers: { apikey: UPLOADS.key, "content-type": TYPES[ext], "x-upsert": "false" },
     body: file,
   });
   if (!res.ok) throw new Error("The upload didn't go through. Check your connection and try again.");
