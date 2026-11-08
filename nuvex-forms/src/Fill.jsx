@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { canListen, useDictation } from "./voice.js";
 import { answersAsText, clearDraft, download, loadDraft, loadProfile, responseLink, saveDraft, saveProfile, uid } from "./store.js";
 import Interview, { callApi } from "./Interview.jsx";
+import { themeStyle } from "./templates.js";
 import { CopyButton, appendText, digits, useAutoGrow, whatsappLink } from "./ui.jsx";
 import { IArrowRight, IChat, ICheck, IDoc, IDownload, IMail, IMic, IStop, IUpload, IX } from "./icons.jsx";
 import { uploadFile } from "./upload.js";
@@ -110,7 +111,7 @@ function OtherInput({ q, other, setOther, onFocus }) {
 function Question({ q, options, value, set, other, setOther, missing }) {
   const toggle = (o) => set((prev) => ((prev || []).includes(o) ? prev.filter((x) => x !== o) : [...(prev || []), o]));
   return (
-    <fieldset className={`f-card ${missing ? "is-missing" : ""}`}>
+    <fieldset className={`f-card f-qcard ${missing ? "is-missing" : ""}`}>
       <legend className="f-q">{q.text}{q.required && <span className="f-req" aria-label="required"> *</span>}</legend>
       {q.hint && <p className="f-hint">{q.hint}</p>}
 
@@ -272,18 +273,20 @@ export default function Fill({ form, preview = false, onExit }) {
     return <Interview form={form} name={field("name")} preview={preview} onExit={onExit} onDone={interviewDone} />;
   }
   if (stage === "sending") {
-    return <div className="f-page">{PreviewBar}<main className="f-main"><p className="muted f-center">Saving your interview…</p></main></div>;
+    return <div className="f-page" style={themeStyle(form)}>{PreviewBar}<main className="f-main"><p className="muted f-center">Saving your interview…</p></main></div>;
   }
   if (stage === "done") return <Sent form={form} response={response} preview={preview} onExit={onExit} />;
 
   const current = pages[page];
   const last = page === pages.length - 1;
+  const before = pages.slice(0, page).reduce((n, p) => n + p.items.length, 0);
   return (
-    <div className="f-page">
+    <div className="f-page" style={themeStyle(form)}>
       {PreviewBar}
       <main className="f-main">
-        <form onSubmit={submit} noValidate>
+        <form onSubmit={submit} noValidate style={{ counterReset: `q ${before}` }}>
           <header className="f-card f-head">
+            <span className="f-banner" aria-hidden="true"><i /><i /><i /></span>
             {owner && <p className="eyebrow">{owner}</p>}
             <h1 className="f-title">{form.title}</h1>
             {page === 0 && form.intro && <p className="f-intro">{form.intro}</p>}
@@ -338,7 +341,7 @@ export function Sent({ form, response, preview, onExit }) {
   const email = form.owner?.email;
   const to = form.owner?.name || "the organiser";
   return (
-    <div className="f-page">
+    <div className="f-page" style={themeStyle(form)}>
       {preview && (
         <div className="preview-note"><span>Preview — nothing is saved or sent.</span><button className="text-btn" onClick={onExit}>Close preview</button></div>
       )}

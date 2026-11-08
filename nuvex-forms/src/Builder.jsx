@@ -1,7 +1,8 @@
 // The form editor: Questions, Interview and Responses — like Google Forms. Saves automatically.
-import { useEffect, useRef, useState } from "react";
-import { HAS_OPTIONS, TYPES } from "./templates.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { HAS_OPTIONS, THEMES, TYPES, themeOf, themeStyle } from "./templates.js";
 import { uploadsReady } from "./upload.js";
+import { suggestOptions, suggestionsFor, toQuestions } from "./assist.js";
 import { formLink, guessAutofill, loadInbox, saveForm, uid } from "./store.js";
 import FormResponses from "./Responses.jsx";
 import { CopyButton, Switch, useAutoGrow, whatsappLink } from "./ui.jsx";
@@ -68,6 +69,18 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
     return { ...f, questions: qs };
   });
 
+  const suggestions = useMemo(() => suggestionsFor(form), [form.questions, form.description, form.title]); // eslint-disable-line react-hooks/exhaustive-deps
+  const addSuggested = (s) => setForm((f) => ({ ...f, questions: [...f.questions, ...toQuestions([s])] }));
+  const [optState, setOptState] = useState({});
+  const fillOptions = async (q) => {
+    setOptState((m) => ({ ...m, [q.id]: "loading" }));
+    const opts = await suggestOptions(q.text, form.description || form.title);
+    if (!opts) { setOptState((m) => ({ ...m, [q.id]: "none" })); return; }
+    const mine = q.options.map((o) => o.trim()).filter((o) => o && !/^option \d+$/i.test(o));
+    setQ(q.id, { options: [...mine, ...opts.filter((o) => !mine.some((m) => m.toLowerCase() === o.toLowerCase()))] });
+    setOptState((m) => ({ ...m, [q.id]: "" }));
+  };
+
   const iv = form.interview || { enabled: false, seconds: 120, questions: [] };
   const setIv = (patch) => update({ interview: { ...iv, ...patch } });
   const setIvQ = (id, patch) => setIv({ questions: iv.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)) });
@@ -86,7 +99,7 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
   const invite = `${form.title}\n\nApply here:\n${link}`;
 
   return (
-    <div className="editor-page">
+    <div className="editor-page" style={themeStyle(form)}>
       <header className="editor-bar">
         <div className="editor-bar-inner">
           <button className="icon-btn" onClick={onBack} aria-label="Back to forms" title="Back to forms"><IArrowLeft size={18} /></button>
@@ -110,6 +123,20 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
             <section className="e-card e-head">
               <AutoText className="e-title" value={form.title} onChange={(v) => update({ title: v })} placeholder="Untitled form" label="Form title" />
               <AutoText className="e-desc" value={form.intro} onChange={(v) => update({ intro: v })} placeholder="Form description" label="Form description" />
+              <div className="e-themes" role="radiogroup" aria-label="Form colour">
+                <span className="e-themes-label">Colour</span>
+                {THEMES.map((t) => (
+                  <button key={t.id} type="button" role="radio" aria-checked={themeOf(form).id === t.id} aria-label={t.label} title={t.label}
+                    className={`e-swatch ${themeOf(form).id === t.id ? "is-on" : ""}`} style={{ "--sw": t.c, "--sw-soft": t.soft }}
+                    onClick={() => update({ theme: t.id })} />
+                ))}
+              </div>
+              {form.draftedBy && (
+                <p className="e-drafted">
+                  <span>Made from “{form.description}” — {form.draftedBy.toLowerCase()}. Change anything you like.</span>
+                  <button className="icon-btn" onClick={() => update({ draftedBy: "" })} aria-label="Dismiss"><IX size={14} /></button>
+                </p>
+              )}
             </section>
 
             {form.questions.map((q, i) => {
@@ -149,7 +176,7 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
 
               const mark = (oi) => (q.type === "dropdown" ? <span className="opt-num">{oi + 1}.</span> : <span className={`opt-mark ${q.type === "multi" ? "is-square" : ""}`} />);
               return (
-                <section className="e-card" key={q.id}>
+                <section className="e-card e-qcard" key={q.id}>
                   <div className="e-row">
                     <AutoText className="e-q" value={q.text} placeholder="Question" label={`Question ${i + 1}`}
                       onChange={(v) => setQ(q.id, { text: v, ...(q.autofillTouched ? {} : { autofill: guessAutofill(v) }) })} />
@@ -184,7 +211,14 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
                         {mark(q.options.length + (q.other ? 1 : 0))}
                         <button className="e-add-link" onClick={() => setQ(q.id, { options: [...q.options, ""] })}>Add option</button>
                         {!q.other && <><span className="muted">or</span><button className="e-add-link is-accent" onClick={() => setQ(q.id, { other: true })}>add "Other"</button></>}
+                        {q.text.trim() && (
+                          <><span className="muted">·</span>
+                            <button className="e-add-link is-accent" disabled={optState[q.id] === "loading"} onClick={() => fillOptions(q)}>
+                              {optState[q.id] === "loading" ? "Suggesting…" : "Suggest options"}
+                            </button></>
+                        )}
                       </div>
+                      {optState[q.id] === "none" && <p className="e-private">No suggestions for this one yet — type your own options.</p>}
                     </div>
                   )}
                   {q.type === "short" && <p className="e-sample">Short answer text</p>}
@@ -207,6 +241,17 @@ export default function Builder({ initial, initialTab, onBack, onPreview }) {
               <button className="e-add" onClick={() => update({ questions: [...form.questions, newQuestion()] })}><IPlus size={18} /><span>Add question</span></button>
               <button className="e-add" onClick={() => update({ questions: [...form.questions, newSection()] })}><ISection size={18} /><span>Add section</span></button>
             </div>
+
+            {suggestions.length > 0 && (
+              <section className="e-suggest">
+                <p className="e-label">Suggested for this form</p>
+                <div className="e-suggest-list">
+                  {suggestions.map((s) => (
+                    <button key={s.text} className="chip" onClick={() => addSuggested(s)}><IPlus size={14} /><span>{s.text}</span></button>
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
 

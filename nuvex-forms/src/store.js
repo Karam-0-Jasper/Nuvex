@@ -46,6 +46,7 @@ export function publicForm(form) {
     title: form.title,
     intro: form.intro || "",
     owner: form.owner || {},
+    ...(form.theme ? { theme: form.theme } : {}),
     // Interview questions travel without the owner's expected answers, so applicants can't read them.
     ...(form.interview?.enabled && form.interview.questions?.some((q) => q.text?.trim())
       ? { interview: { enabled: true, seconds: form.interview.seconds || 120, questions: form.interview.questions.filter((q) => q.text?.trim()).map(({ id, text }) => ({ id, text: text.trim() })) } }
@@ -108,6 +109,8 @@ export const saveProfile = (p) => write("nf.profile", p);
 /** Guess if a question is asking for one of the "My info" fields. */
 export function guessAutofill(text) {
   const t = norm(text);
+  // Someone else's details (a parent, an emergency contact, a referee) must never be filled with the applicant's own.
+  if (/\b(parent|guardian|emergency|reference|referee|next of kin|coach|manager s|employer s)\b/.test(t)) return "";
   if (/\b(e ?mail)\b/.test(t)) return "email";
   if (/\b(phone|whatsapp|mobile|cell|contact number)\b/.test(t)) return "phone";
   if (/\b(website|portfolio|linkedin|instagram|link)\b/.test(t)) return "link";
