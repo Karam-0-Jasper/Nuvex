@@ -2,13 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import Builder, { newQuestion } from "./Builder.jsx";
 import Fill from "./Fill.jsx";
 import { ResponseDetail } from "./Responses.jsx";
-import { TEMPLATES, THEMES, themeOf } from "./templates.js";
+import { TEMPLATES, themeStyle } from "./templates.js";
 import { addToInbox, deleteForm, formLink, getForm, getLetter, loadForms, loadInbox, loadLetters, publicForm, saveForm, saveLetter, uid, unpack } from "./store.js";
-import { CopyButton, MicButton, appendText, timeAgo } from "./ui.jsx";
-import { draftForm } from "./assist.js";
+import { CopyButton, timeAgo } from "./ui.jsx";
 import { LetterList, LetterTiles, LetterWriter, LettersHome, newLetter } from "./Letter.jsx";
-import { matchLetter, wantsLetter } from "./letters.js";
-import { IArrowRight, IPen, IPlus, ITrash } from "./icons.jsx";
+import { IMoon, IPen, IPlus, ISun, ITrash } from "./icons.jsx";
 
 function fromTemplate(tid) {
   const t = TEMPLATES.find((x) => x.id === tid);
@@ -96,12 +94,29 @@ function Shell({ children }) {
         <div className="nav-inner">
           <a href="#/" className="wordmark"><Mark /><span>Nuvex Forms</span></a>
           <span className="grow" />
+          <ModeButton />
           <a href="#/letters" className="btn btn-sm nav-letters"><IPen size={15} /><span className="hide-sm">Letters</span></a>
           <a href="#/new/blank" className="btn btn-primary btn-sm"><IPlus size={15} /><span>New form</span></a>
         </div>
       </header>
       <main>{children}</main>
     </div>
+  );
+}
+
+/** Switch between light and dark. Remembered on this device. */
+function ModeButton() {
+  const [mode, setMode] = useState(() => document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+  const flip = () => {
+    const next = mode === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("nf.mode", next); } catch { /* ignore */ }
+    setMode(next);
+  };
+  return (
+    <button type="button" className="icon-btn nav-mode" onClick={flip} aria-label={mode === "dark" ? "Light mode" : "Dark mode"} title={mode === "dark" ? "Light mode" : "Dark mode"}>
+      {mode === "dark" ? <ISun size={18} /> : <IMoon size={18} />}
+    </button>
   );
 }
 
@@ -115,50 +130,6 @@ function Broken() {
   );
 }
 
-const EXAMPLES = ["Tryouts for our under-17 football team", "Hiring a video editor for our studio", "Registration for a weekend photography workshop", "A job application letter"];
-
-/** One sentence in, a ready form out. */
-function Describe() {
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const create = async (e) => {
-    e?.preventDefault();
-    const d = text.trim();
-    if (!d || busy) return;
-    if (wantsLetter(d)) {
-      const letter = newLetter(matchLetter(d));
-      saveLetter(letter);
-      go(`#/letter/${letter.id}`);
-      return;
-    }
-    setBusy(true);
-    const draft = await draftForm(d);
-    const f = { id: uid(), title: draft.title, intro: draft.intro, description: d, draftedBy: draft.source, owner: {}, questions: draft.questions };
-    saveForm(f);
-    go(`#/edit/${f.id}`);
-  };
-  return (
-    <form className="describe" onSubmit={create}>
-      <p className="describe-hello">Hello there</p>
-      <label className="describe-label" htmlFor="describe">What would you like to <em>make</em> today?</label>
-      <div className="describe-box">
-        <input id="describe" value={text} onChange={(e) => setText(e.target.value)} disabled={busy}
-          placeholder="Describe your form or letter in a sentence…" autoComplete="off" />
-        <MicButton onText={(t) => setText((v) => appendText(v, t))} label="Say it" />
-        <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy}>
-          <span>{busy ? "Building…" : "Create"}</span>{!busy && <IArrowRight size={16} />}
-        </button>
-      </div>
-      <p className="describe-hint">
-        We'll add the usual questions and the ones your topic needs. Ask for a letter and we'll set out its format. You can change anything after.
-      </p>
-      <p className="describe-examples">
-        {EXAMPLES.map((x) => <button type="button" key={x} className="example-chip" onClick={() => setText(x)}>{x}</button>)}
-      </p>
-    </form>
-  );
-}
-
 function Home() {
   const [forms, setForms] = useState(loadForms);
   const [letters, setLetters] = useState(loadLetters);
@@ -168,15 +139,14 @@ function Home() {
     <>
       <section className="start">
         <div className="start-inner">
-          <Describe />
-          <h2 className="start-h">Or start from a template</h2>
+          <h2 className="start-h">New form</h2>
           <div className="tiles">
             <a className="tile" href="#/new/blank">
               <span className="tile-art is-blank"><IPlus size={30} /></span>
               <span className="tile-name">Blank form</span>
             </a>
-            {TEMPLATES.map((t, i) => (
-              <a className="tile" key={t.id} href={`#/new/${t.id}`} style={{ "--theme": THEMES[i % THEMES.length].c, "--theme-soft": THEMES[i % THEMES.length].soft }}>
+            {TEMPLATES.map((t) => (
+              <a className="tile" key={t.id} href={`#/new/${t.id}`}>
                 <span className="tile-art">
                   <span className="tile-line is-title" />
                   {t.questions.slice(0, 3).map((q, i) => <span key={i} className="tile-line" />)}
@@ -186,7 +156,7 @@ function Home() {
               </a>
             ))}
           </div>
-          <h2 className="start-h l-home-h">Or write a letter in the right format</h2>
+          <h2 className="start-h l-home-h">New letter</h2>
           <LetterTiles limit={5} />
         </div>
       </section>
@@ -194,11 +164,11 @@ function Home() {
       <section className="page">
         <h2 className="start-h">Your forms</h2>
         {!forms.length ? (
-          <p className="muted">No forms yet. Start one above — it takes a minute.</p>
+          <p className="muted">No forms yet.</p>
         ) : (
           <div className="table">
             {forms.map((f) => (
-              <div className="table-row is-forms" key={f.id} style={{ "--theme": themeOf(f).c, "--theme-soft": themeOf(f).soft }}>
+              <div className="table-row is-forms" key={f.id} style={themeStyle(f)}>
                 <a className="table-title" href={`#/edit/${f.id}`}><span className="form-dot" aria-hidden="true">{(f.title || "U").trim().charAt(0).toUpperCase()}</span>{f.title || "Untitled form"}{f.interview?.enabled && <span className="tag">Interview</span>}</a>
                 <span className="muted">{counts[f.id] || 0} response{counts[f.id] === 1 ? "" : "s"}</span>
                 <span className="muted hide-sm">{f.updated ? `Edited ${timeAgo(f.updated)}` : ""}</span>
