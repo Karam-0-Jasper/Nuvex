@@ -94,8 +94,9 @@ export const TEMPLATES = [
   },
 ];
 
-// Form colours (like Google Forms themes). Each form picks one; applicants see it.
+// Form colours. The default is plain black and white (it follows dark or light mode). A form can pick a colour; applicants see it.
 export const THEMES = [
+  { id: "mono", label: "Black and white", c: "var(--accent)", soft: "var(--accent-soft)", on: "var(--on-ink)" },
   { id: "coral", label: "Coral", c: "#E2704A", soft: "#FDE9DF" },
   { id: "sky", label: "Sky", c: "#3A7BC8", soft: "#DFECFB" },
   { id: "mint", label: "Mint", c: "#2F9468", soft: "#DCF1E6" },
@@ -104,15 +105,8 @@ export const THEMES = [
   { id: "rose", label: "Rose", c: "#D2517C", soft: "#FCE4EC" },
 ];
 
-/** A form's colour: the one it picked, else a stable one based on its id. */
-export function themeOf(form) {
-  const picked = THEMES.find((t) => t.id === form?.theme);
-  if (picked) return picked;
-  const key = String(form?.id || form?.title || "");
-  let h = 0;
-  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return THEMES[h % THEMES.length];
-}
+/** A form's colour: the one it picked, else black and white. */
+export const themeOf = (form) => THEMES.find((t) => t.id === form?.theme) || THEMES[0];
 
 /** Inline CSS variables that colour a page in the form's theme. */
-export const themeStyle = (form) => { const t = themeOf(form); return { "--theme": t.c, "--theme-soft": t.soft }; };
+export const themeStyle = (form) => { const t = themeOf(form); return { "--theme": t.c, "--theme-soft": t.soft, "--on-theme": t.on || "#fff" }; };
