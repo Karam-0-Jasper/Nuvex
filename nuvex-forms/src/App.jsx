@@ -3,10 +3,12 @@ import Builder, { newQuestion } from "./Builder.jsx";
 import Fill from "./Fill.jsx";
 import { ResponseDetail } from "./Responses.jsx";
 import { TEMPLATES, THEMES, themeOf } from "./templates.js";
-import { addToInbox, deleteForm, formLink, getForm, loadForms, loadInbox, publicForm, saveForm, uid, unpack } from "./store.js";
+import { addToInbox, deleteForm, formLink, getForm, getLetter, loadForms, loadInbox, loadLetters, publicForm, saveForm, saveLetter, uid, unpack } from "./store.js";
 import { CopyButton, MicButton, appendText, timeAgo } from "./ui.jsx";
 import { draftForm } from "./assist.js";
-import { IArrowRight, IPlus, ITrash } from "./icons.jsx";
+import { LetterList, LetterTiles, LetterWriter, LettersHome, newLetter } from "./Letter.jsx";
+import { matchLetter, wantsLetter } from "./letters.js";
+import { IArrowRight, IPen, IPlus, ITrash } from "./icons.jsx";
 
 function fromTemplate(tid) {
   const t = TEMPLATES.find((x) => x.id === tid);
@@ -23,6 +25,13 @@ function fromTemplate(tid) {
 
 /** "#/new/<template>" creates the form once and becomes "#/edit/<id>", so Back or refresh never duplicates it. */
 function resolveHash() {
+  const l = location.hash.match(/^#\/letter\/new\/([\w-]*)/);
+  if (l) {
+    const letter = newLetter(l[1]);
+    saveLetter(letter);
+    history.replaceState(null, "", `#/letter/${letter.id}`);
+    return location.hash;
+  }
   const m = location.hash.match(/^#\/new\/([\w-]*)/);
   if (!m) return location.hash;
   const f = fromTemplate(m[1]);
@@ -58,6 +67,11 @@ export default function App() {
     const f = getForm(arg);
     return f ? <Builder key={arg} initial={f} initialTab={sub} onBack={() => go("#/")} onPreview={(x) => go(`#/preview/${x.id}`)} /> : <Shell><Broken /></Shell>;
   }
+  if (page === "letters") return <Shell><LettersHome /></Shell>;
+  if (page === "letter") {
+    const l = getLetter(arg);
+    return <Shell>{l ? <LetterWriter key={arg} initial={l} /> : <Broken />}</Shell>;
+  }
   if (page === "preview") {
     const f = getForm(arg);
     return f ? <Fill key={hash} form={publicForm(f)} preview onExit={() => go(`#/edit/${f.id}`)} /> : <Shell><Broken /></Shell>;
@@ -82,6 +96,7 @@ function Shell({ children }) {
         <div className="nav-inner">
           <a href="#/" className="wordmark"><Mark /><span>Nuvex Forms</span></a>
           <span className="grow" />
+          <a href="#/letters" className="btn btn-sm nav-letters"><IPen size={15} /><span className="hide-sm">Letters</span></a>
           <a href="#/new/blank" className="btn btn-primary btn-sm"><IPlus size={15} /><span>New form</span></a>
         </div>
       </header>
@@ -100,7 +115,7 @@ function Broken() {
   );
 }
 
-const EXAMPLES = ["Tryouts for our under-17 football team", "Hiring a video editor for our studio", "Registration for a weekend photography workshop"];
+const EXAMPLES = ["Tryouts for our under-17 football team", "Hiring a video editor for our studio", "Registration for a weekend photography workshop", "A job application letter"];
 
 /** One sentence in, a ready form out. */
 function Describe() {
@@ -110,6 +125,12 @@ function Describe() {
     e?.preventDefault();
     const d = text.trim();
     if (!d || busy) return;
+    if (wantsLetter(d)) {
+      const letter = newLetter(matchLetter(d));
+      saveLetter(letter);
+      go(`#/letter/${letter.id}`);
+      return;
+    }
     setBusy(true);
     const draft = await draftForm(d);
     const f = { id: uid(), title: draft.title, intro: draft.intro, description: d, draftedBy: draft.source, owner: {}, questions: draft.questions };
@@ -122,14 +143,14 @@ function Describe() {
       <label className="describe-label" htmlFor="describe">What would you like to <em>make</em> today?</label>
       <div className="describe-box">
         <input id="describe" value={text} onChange={(e) => setText(e.target.value)} disabled={busy}
-          placeholder="Describe your form in a sentence…" autoComplete="off" />
+          placeholder="Describe your form or letter in a sentence…" autoComplete="off" />
         <MicButton onText={(t) => setText((v) => appendText(v, t))} label="Say it" />
         <button className="btn btn-primary" type="submit" disabled={!text.trim() || busy}>
           <span>{busy ? "Building…" : "Create"}</span>{!busy && <IArrowRight size={16} />}
         </button>
       </div>
       <p className="describe-hint">
-        We'll add the usual questions and the ones your topic needs. You can change anything after.
+        We'll add the usual questions and the ones your topic needs. Ask for a letter and we'll set out its format. You can change anything after.
       </p>
       <p className="describe-examples">
         {EXAMPLES.map((x) => <button type="button" key={x} className="example-chip" onClick={() => setText(x)}>{x}</button>)}
@@ -140,6 +161,7 @@ function Describe() {
 
 function Home() {
   const [forms, setForms] = useState(loadForms);
+  const [letters, setLetters] = useState(loadLetters);
   const counts = useMemo(() => loadInbox().reduce((m, r) => ((m[r.formId] = (m[r.formId] || 0) + 1), m), {}), []);
 
   return (
@@ -164,6 +186,8 @@ function Home() {
               </a>
             ))}
           </div>
+          <h2 className="start-h l-home-h">Or write a letter in the right format</h2>
+          <LetterTiles limit={5} />
         </div>
       </section>
 
@@ -188,6 +212,12 @@ function Home() {
               </div>
             ))}
           </div>
+        )}
+        {letters.length > 0 && (
+          <>
+            <h2 className="start-h l-home-list">Your letters</h2>
+            <LetterList letters={letters} onChange={setLetters} />
+          </>
         )}
       </section>
     </>
