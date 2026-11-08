@@ -184,3 +184,12 @@ export function download(filename, text, type = "text/plain") {
 export function answersAsText(title, answers) {
   return `${title}\n\n` + answers.map(([q, a], i) => `${i + 1}. ${q}\n${a || "—"}`).join("\n\n");
 }
+
+// ---------- My letters ----------
+
+export const loadLetters = () => read("nf.letters", []);
+export const getLetter = (id) => loadLetters().find((l) => l.id === id);
+export function saveLetter(letter) {
+  write("nf.letters", [{ ...letter, updated: Date.now() }, ...loadLetters().filter((l) => l.id !== letter.id)]);
+}
+export const deleteLetter = (id) => write("nf.letters", loadLetters().filter((l) => l.id !== id));
