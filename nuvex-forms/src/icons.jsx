@@ -37,6 +37,3 @@ export const IShuffle = (p) => <S {...p}><path d="M4 7h3c4 0 6 10 10 10h3M17 14l
 export const IPrint = (p) => <S {...p}><path d="M7 9V3h10v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M7 14h10v7H7z" /></S>;
 export const ISun = (p) => <S {...p}><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" /></S>;
 export const IMoon = (p) => <S {...p}><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></S>;
-export const ICalendar = (p) => <S {...p}><rect x="3.5" y="5" width="17" height="15.5" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4M8.5 14.5l2 2 4-4" /></S>;
-export const IChevronLeft = (p) => <S {...p}><path d="M15 6l-6 6 6 6" /></S>;
-export const IChevronRight = (p) => <S {...p}><path d="M9 6l6 6-6 6" /></S>;

@@ -193,12 +193,3 @@ export function saveLetter(letter) {
   write("nf.letters", [{ ...letter, updated: Date.now() }, ...loadLetters().filter((l) => l.id !== letter.id)]);
 }
 export const deleteLetter = (id) => write("nf.letters", loadLetters().filter((l) => l.id !== id));
-
-// ---------- Attendance registers ----------
-
-export const loadRegisters = () => read("nf.registers", []);
-export const getRegister = (id) => loadRegisters().find((r) => r.id === id);
-export function saveRegister(reg) {
-  write("nf.registers", [{ ...reg, updated: Date.now() }, ...loadRegisters().filter((r) => r.id !== reg.id)]);
-}
-export const deleteRegister = (id) => write("nf.registers", loadRegisters().filter((r) => r.id !== id));

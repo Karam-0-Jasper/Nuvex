@@ -3,11 +3,10 @@ import Builder, { newQuestion } from "./Builder.jsx";
 import Fill from "./Fill.jsx";
 import { ResponseDetail } from "./Responses.jsx";
 import { TEMPLATES, themeStyle } from "./templates.js";
-import { addToInbox, deleteForm, formLink, getForm, getLetter, getRegister, loadForms, loadInbox, loadLetters, publicForm, saveForm, saveLetter, uid, unpack } from "./store.js";
+import { addToInbox, deleteForm, formLink, getForm, getLetter, loadForms, loadInbox, loadLetters, publicForm, saveForm, saveLetter, uid, unpack } from "./store.js";
 import { CopyButton, timeAgo } from "./ui.jsx";
 import { LetterList, LetterTiles, LetterWriter, LettersHome, newLetter } from "./Letter.jsx";
-import { AttendanceHome, Register } from "./Attendance.jsx";
-import { ICalendar, IMoon, IPen, IPlus, ISun, ITrash } from "./icons.jsx";
+import { IMoon, IPen, IPlus, ISun, ITrash } from "./icons.jsx";
 
 function fromTemplate(tid) {
   const t = TEMPLATES.find((x) => x.id === tid);
@@ -71,11 +70,6 @@ export default function App() {
     const l = getLetter(arg);
     return <Shell>{l ? <LetterWriter key={arg} initial={l} /> : <Broken />}</Shell>;
   }
-  if (page === "attendance") {
-    if (!arg) return <Shell><AttendanceHome /></Shell>;
-    const r = getRegister(arg);
-    return <Shell>{r ? <Register key={arg} initial={r} /> : <Broken />}</Shell>;
-  }
   if (page === "preview") {
     const f = getForm(arg);
     return f ? <Fill key={hash} form={publicForm(f)} preview onExit={() => go(`#/edit/${f.id}`)} /> : <Shell><Broken /></Shell>;
@@ -101,9 +95,8 @@ function Shell({ children }) {
           <a href="#/" className="wordmark"><Mark /><span>Nuvex Forms</span></a>
           <span className="grow" />
           <ModeButton />
-          <a href="#/attendance" className="btn btn-sm nav-letters"><ICalendar size={15} /><span className="hide-sm">Attendance</span></a>
           <a href="#/letters" className="btn btn-sm nav-letters"><IPen size={15} /><span className="hide-sm">Letters</span></a>
-          <a href="#/new/blank" className="btn btn-primary btn-sm nav-new"><IPlus size={15} /><span className="nav-new-label">New form</span></a>
+          <a href="#/new/blank" className="btn btn-primary btn-sm"><IPlus size={15} /><span>New form</span></a>
         </div>
       </header>
       <main>{children}</main>
