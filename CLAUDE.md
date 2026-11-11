@@ -8,12 +8,12 @@
 ## Project context
 - **What this is:** Nuvex, a repo holding several separate web apps (PWAs) by Karamba Zelany, built for Liberia. Each app lives in its own folder with its own `package.json` and is deployed as its own Vercel project (Root Directory set to that folder).
 - **Apps in this repo:**
-  - `/` (root): Nuvex AI chat app. Pick a topic, personality, and reply style. Firebase Google login (config in `firebase.js` is still placeholders). `server.js.` is an Express proxy to the Anthropic API.
   - `nuvex-attendance/`: attendance tracker for groups. Data stays on the device, CSV export, no server.
   - `nuvex-forms/`: application forms with an optional AI video interview. Serverless routes in `api/`. On-device integrity checks via MediaPipe.
   - `too-easy/`: shopping PWA for Too Easy, a Monrovia streetwear brand. Supabase for orders, Leaflet delivery map, WhatsApp checkout, admin at `/#admin`.
+- **Not in use:** the old Nuvex AI chat app in the repo root (`App.jsx`, `firebase.js`, `server.js.` and related files). Don't fix, build on or delete it unless I ask.
 - **Who it's for:** people and small businesses in Liberia, mostly on phones, often on slow or expensive data.
-- **Tech stack:** React 18 + Vite 5, plain JavaScript (JSX). Deployed on Vercel. Firebase (root), Supabase (too-easy), Anthropic API (root, nuvex-forms).
+- **Tech stack:** React 18 + Vite 5, plain JavaScript (JSX). Deployed on Vercel. Supabase (too-easy), Anthropic API (nuvex-forms).
 - **Secrets:** `ANTHROPIC_API_KEY` and `INTERVIEW_SECRET` are Vercel environment variables. Never put keys in code or in the browser.
 - **How to run / test:** `cd <app-folder> && npm install && npm run dev`. Check it builds with `npm run build`. There are no automated tests yet.
 - **Rules for this repo:** only touch the app folder the task is about. Keep each app's dependencies separate. Design for small phone screens and weak connections first.
