@@ -22,8 +22,29 @@ Tip: tap **Fill ✅** first, then only tap ❌ for the students who are absent.
 - Tabs along the bottom switch between classes. Copy pastes the whole sheet into Excel or Google Sheets; the download button saves a .csv.
 - Light and dark theme from the moon / sun button.
 
-Everything is saved on the device you use. `supabase/schema.sql` is the database setup for a later version
-where registers are shared and locked with a 4-digit passcode; the app does not use it yet.
+## Logins (school version)
+When a school database is connected (`src/config.js`), everyone logs in first:
+- **Set up your school** (once): school name, a short **school code** (e.g. `st-mary`), your name, a username and a password.
+  The person who does this is the **school admin**.
+- The admin opens the account button (top right) → **Teachers** and adds each teacher with a name, username and password,
+  then tells them in person. Teachers log in with the school code, their username and password, and stay logged in.
+- **A teacher sees only their own registers.** The admin sees every register in the school, the staff register,
+  and can **give** a register to a teacher from the ⋮ menu.
+- Forgot password: the admin gives a new one (Teachers → New password). Removing a teacher keeps their registers (they move to the admin).
+- 5 wrong passwords lock that account for 15 minutes.
+- **Weak connection:** every tap is saved on the phone first and uploaded when there is signal. The title bar says
+  *Saving…*, *Saved*, or *Offline · saved on this phone*. Only the changes are uploaded, not the whole register.
+- **Log out** removes that account's registers from the phone, so the next person on a shared phone can't see them.
+  It refuses while changes are still waiting to upload.
+- Registers made on the phone before logins existed can be added to the account once (a banner offers it).
+
+Without a database the app runs with no logins and saves everything on the device (this is what the preview link does).
+
+### Connecting the database
+1. In Supabase, open the project → **SQL Editor** → New query → paste all of `supabase/schema.sql` → **Run**.
+2. Put the project URL and the **publishable** key in `src/config.js` (or set `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY`
+   in Vercel). The publishable key is meant to be public: every table is locked and the only way in is the
+   functions in `schema.sql`, which check the login on the server. Never put the `service_role`/secret key in the app.
 
 ## Deploy on Vercel
 Add a new project from this repo and set **Root Directory** to `nuvex-attendance`. Vercel detects Vite on its own.

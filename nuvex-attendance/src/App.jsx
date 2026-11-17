@@ -3,6 +3,11 @@
 // Column A is the name, one column per date (click a cell: ✅ → ❌ → blank), then Attended and Missed.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { copyText, dayKey, download, fromKey, loadSheets, newSheet, saveSheets, uid } from "./store.js";
+import {
+  ONLINE, adopt, diff, forget, infoOf, loadCache, loadQueue, loadSession, pushQueue, rpc, saveCache, sheetsOf, shiftQueue,
+} from "./sync.js";
+import Auth from "./Auth.jsx";
+import Account from "./Account.jsx";
 
 const IS_ARTIFACT = import.meta.env.VITE_ARTIFACT === "1";
 const k = (pid, day) => `${pid}|${day}`;
@@ -90,15 +95,120 @@ const Btn = ({ icon, label, onClick, disabled, active, text }) => (
   </button>
 );
 
+// ---------- logins ----------
+// With a school database set up (config.js), everyone logs in first. Without one, the app runs on this device only.
+export default function Root() {
+  const [session, setSession] = useState(() => (ONLINE ? loadSession() : null));
+  const [note, setNote] = useState("");
+  if (!ONLINE) return <App />;
+  if (!session) return <Auth Logo={Logo} note={note} onSignedIn={(s) => { setNote(""); setSession(s); }} />;
+  return (
+    <App key={session.id} session={session} onSignOut={(expired) => {
+      if (expired) { try { localStorage.removeItem("na.session"); } catch { /* ignore */ } setNote("You were logged out. Please log in again."); }
+      setSession(null);
+    }} />
+  );
+}
+
+const SYNC_TEXT = { saved: "Saved", saving: "Saving…", offline: "Offline · saved on this phone", error: "Not uploaded yet · will retry" };
+
 // ---------- app with history ----------
-export default function App() {
-  const [sheets, setSheetsRaw] = useState(loadSheets);
+function App({ session, onSignOut }) {
+  const cloud = !!session;
+  const [sheets, setSheetsRaw] = useState(() => (cloud ? loadCache(session.id).sheets : loadSheets()));
+  const [info, setInfo] = useState(() => (cloud ? loadCache(session.id).info : null));
+  const [sync, setSync] = useState("saved");
   const [openId, setOpenId] = useState(null);
   const [mode, toggle] = useTheme();
   const hist = useRef({ past: [], future: [], last: 0, tag: "" });
   const [, bump] = useState(0);
 
-  useEffect(() => { const t = setTimeout(() => saveSheets(sheets), 150); return () => clearTimeout(t); }, [sheets]);
+  useEffect(() => {
+    const t = setTimeout(() => (cloud ? saveCache(session.id, { info, sheets }) : saveSheets(sheets)), 150);
+    return () => clearTimeout(t);
+  }, [sheets, info]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ----- keeping the school database in step (logins only) -----
+  // Each change is compared with the version before it; only the difference is queued and uploaded.
+  const prev = useRef(sheets);
+  const fromServer = useRef(false);
+  const version = useRef(0);
+  const busy = useRef(false);
+  const timer = useRef(null);
+  const lastPull = useRef(0);
+
+  const flush = useCallback(async () => {
+    if (!cloud || busy.current) return false;
+    busy.current = true;
+    clearTimeout(timer.current);
+    try {
+      for (;;) {
+        const queue = loadQueue(session.id);
+        if (!queue.length) { setSync("saved"); return true; }
+        setSync("saving");
+        const batch = queue.slice(0, 500);
+        await rpc("apply_ops", { p_token: session.token, p_ops: batch });
+        shiftQueue(session.id, batch.length);
+      }
+    } catch (e) {
+      if (e.code === "signed_out") { onSignOut(true); return false; }
+      setSync(e.network ? "offline" : "error");
+      timer.current = setTimeout(() => flush(), 20000);
+      return false;
+    } finally { busy.current = false; }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Uploads what is waiting, then downloads the latest (other phones, or the admin, may have changed things). */
+  const pull = useCallback(async () => {
+    if (!(await flush())) return;
+    const v = version.current;
+    try {
+      const data = await rpc("get_data", { p_token: session.token });
+      lastPull.current = Date.now();
+      if (v !== version.current || loadQueue(session.id).length) return; // edited meanwhile: keep the phone's version
+      fromServer.current = true;
+      setSheetsRaw((cur) => sheetsOf(data, cur));
+      hist.current = { past: [], future: [], last: 0, tag: "" };
+      setInfo(infoOf(data));
+      bump((n) => n + 1);
+    } catch (e) {
+      if (e.code === "signed_out") onSignOut(true); else setSync(e.network ? "offline" : "error");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!cloud) return;
+    if (fromServer.current) { fromServer.current = false; prev.current = sheets; return; }
+    const ops = diff(prev.current, sheets, info?.me.id);
+    prev.current = sheets;
+    if (!ops.length) return;
+    version.current++;
+    pushQueue(session.id, ops);
+    setSync("saving");
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => flush(), 600);
+  }, [sheets]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!cloud) return undefined;
+    pull();
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flush();
+      else if (Date.now() - lastPull.current > 60000) pull();
+    };
+    const onOnline = () => pull();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("online", onOnline);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("online", onOnline); clearTimeout(timer.current); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const logout = async () => {
+    if (!(await flush())) return "Some changes haven't uploaded yet. Connect to the internet, then log out.";
+    try { await rpc("logout", { p_token: session.token }); } catch { /* the login ends on this phone either way */ }
+    forget(session.id);
+    onSignOut(false);
+    return "";
+  };
 
   /** Every change goes through here so it can be undone. Typing in one cell counts as one step. */
   const commit = useCallback((fn, tag = "") => {
@@ -115,17 +225,26 @@ export default function App() {
 
   const open = (id) => { setOpenId(id); if (id) commit((all) => all.map((s) => (s.id === id ? { ...s, opened: Date.now() } : s)), "open"); };
   const create = (name, people = []) => {
-    const s = { ...newSheet(name), cols: [], people: people.map((n) => ({ id: uid(), name: n })), opened: Date.now() };
+    const s = { ...newSheet(name), cols: [], people: people.map((n) => ({ id: uid(), name: n })), opened: Date.now(),
+      ...(cloud ? { owner: info.me.id, ownerName: info.me.name } : {}) };
     commit((all) => [...all, s]); setOpenId(s.id);
   };
   const sheet = sheets.find((s) => s.id === openId);
+  const account = cloud && info ? (
+    <Account session={session} info={info} onLogout={logout}
+      onTeam={(team, moved) => { setInfo((x) => ({ ...x, team })); if (moved) pull(); }} />
+  ) : null;
 
   return sheet ? (
     <Workbook sheets={sheets} sheet={sheet} commit={commit} undo={undo} redo={redo}
       canUndo={hist.current.past.length > 0} canRedo={hist.current.future.length > 0}
+      saveText={cloud ? SYNC_TEXT[sync] : "Saved to this device"} saveState={cloud ? sync : "saved"}
       mode={mode} toggle={toggle} onHome={() => setOpenId(null)} onOpen={open} onCreate={() => create(`Class ${sheets.length + 1}`)} />
   ) : (
-    <Home sheets={sheets} mode={mode} toggle={toggle} onOpen={open} onCreate={create}
+    <Home sheets={sheets} mode={mode} toggle={toggle} onOpen={open} onCreate={create} info={cloud ? info : null} account={account}
+      syncText={cloud && sync !== "saved" ? SYNC_TEXT[sync] : ""}
+      onGive={(id, t) => commit((all) => all.map((s) => (s.id === id ? { ...s, owner: t.id, ownerName: t.name } : s)))}
+      onImport={cloud && info ? (old) => commit((all) => [...all, ...adopt(old, info.me)]) : null}
       onDelete={(id) => commit((all) => all.filter((s) => s.id !== id))} undo={undo} canUndo={hist.current.past.length > 0} />
   );
 }
@@ -150,30 +269,51 @@ function Thumb({ sheet }) {
   );
 }
 
-function Home({ sheets, mode, toggle, onOpen, onCreate, onDelete, undo, canUndo }) {
+function Home({ sheets, mode, toggle, onOpen, onCreate, onDelete, undo, canUndo, info, account, syncText, onGive, onImport }) {
   const [q, setQ] = useState("");
   const [menu, setMenu] = useState(null);
   const [removed, setRemoved] = useState(null);
+  const isAdmin = info?.me.role === "admin";
+  // Registers made on this phone before logins existed can be added to the account once.
+  const [old, setOld] = useState(() => {
+    if (!onImport) return [];
+    try { if (localStorage.getItem("na.imported")) return []; } catch { return []; }
+    return loadSheets().filter((s) => s.people.length);
+  });
+  const importOld = () => {
+    onImport(old);
+    try { localStorage.setItem("na.imported", "1"); } catch { /* ignore */ }
+    setOld([]);
+  };
   const list = [...sheets].filter((s) => (s.name || "").toLowerCase().includes(q.trim().toLowerCase()))
     .sort((a, b) => (b.opened || b.created || 0) - (a.opened || a.created || 0));
   const templates = [
     { name: "Blank register", make: () => onCreate(`Class ${sheets.length + 1}`) },
     { name: "Class register", make: () => onCreate("New class") },
     { name: "Staff register", make: () => onCreate("Staff attendance") },
-  ];
+  ].filter((tp) => !info || isAdmin || tp.name !== "Staff register");
 
   return (
     <div className="home" onClick={() => setMenu(null)}>
       <header className="appbar">
         <Logo size={34} />
-        <span className="appname">Attendance</span>
+        <span className="appname">Attendance{info && <span className="school hide-sm">{info.school.name}</span>}</span>
         <label className="search"><Icon n="search" size={20} />
           <input id="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search registers" aria-label="Search registers" />
         </label>
         <button className="round" onClick={toggle} aria-label={mode === "dark" ? "Light theme" : "Dark theme"} title={mode === "dark" ? "Light theme" : "Dark theme"}>
           <Icon n={mode === "dark" ? "sun" : "moon"} size={20} />
         </button>
+        {account}
       </header>
+      {syncText && <div className="sync-bar" role="status">{syncText}</div>}
+      {old.length > 0 && (
+        <div className="banner" role="status">
+          <span>{old.length === 1 ? "1 register is" : `${old.length} registers are`} saved on this phone from before you logged in.</span>
+          <button className="btn-primary sm" onClick={importOld}>Add to my account</button>
+          <button className="link" onClick={() => setOld([])}>Not now</button>
+        </div>
+      )}
 
       <section className="start">
         <div className="start-in">
@@ -199,7 +339,8 @@ function Home({ sheets, mode, toggle, onOpen, onCreate, onDelete, undo, canUndo 
         {!list.length && <p className="empty">{sheets.length ? "No registers match your search." : "No registers yet. Start one above."}</p>}
         {list.map((s) => (
           <div key={s.id} className="doc-row" onClick={() => onOpen(s.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onOpen(s.id)}>
-            <span className="doc-title"><Logo size={22} /><span>{s.name || "Untitled register"}</span></span>
+            <span className="doc-title"><Logo size={22} /><span>{s.name || "Untitled register"}
+              {isAdmin && s.ownerName && <small className="owner">{s.owner === info.me.id ? "You" : s.ownerName}</small>}</span></span>
             <span className="col-meta hide-sm">{s.people.length}</span>
             <span className="col-meta hide-sm">{when(s.opened || s.created)}</span>
             <span className="col-act">
@@ -207,6 +348,9 @@ function Home({ sheets, mode, toggle, onOpen, onCreate, onDelete, undo, canUndo 
               {menu === s.id && (
                 <div className="pop" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => onOpen(s.id)}>Open</button>
+                  {isAdmin && (info.team || []).filter((tm) => tm.id !== s.owner).map((tm) => (
+                    <button key={tm.id} onClick={() => { onGive(s.id, tm); setMenu(null); }}>Give to {tm.id === info.me.id ? "me" : tm.name}</button>
+                  ))}
                   <button className="is-danger" onClick={() => { onDelete(s.id); setMenu(null); setRemoved(s.name || "Register"); }}>Remove</button>
                 </div>
               )}
@@ -223,7 +367,7 @@ function Home({ sheets, mode, toggle, onOpen, onCreate, onDelete, undo, canUndo 
 }
 
 // ---------- workbook (one register) ----------
-function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, toggle, onHome, onOpen, onCreate }) {
+function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, saveText, saveState, mode, toggle, onHome, onOpen, onCreate }) {
   const days = daysOf(sheet);
   const t = today();
   const [sel, setSel] = useState({ r: 0, c: 1 }); // r: -1 header row, people index, or people.length (new row). c: 0 name, 1..n dates, n+1, n+2 totals
@@ -350,7 +494,7 @@ function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, t
         <div className="wb-titles">
           <input id="doc-title" className="doc-name" value={sheet.name} placeholder="Untitled register" aria-label="Register name"
             onChange={(e) => up((s) => ({ ...s, name: e.target.value }), "title")} />
-          <span className="saved">Saved to this device</span>
+          <span className={`saved is-${saveState}`} role="status">{saveText}</span>
         </div>
         <button className="round" onClick={toggle} aria-label={mode === "dark" ? "Light theme" : "Dark theme"} title={mode === "dark" ? "Light theme" : "Dark theme"}>
           <Icon n={mode === "dark" ? "sun" : "moon"} size={20} />
