@@ -9,7 +9,7 @@ export const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
 export const fromKey = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
 
 export function newSheet(name) {
-  return { id: uid(), name, people: [], cols: [dayKey(new Date())], marks: {} };
+  return { id: uid(), name, people: [], marks: {}, created: Date.now() };
 }
 
 /** Registers from the first version of the app become sheets (late counts as present, excused as absent). */
@@ -30,13 +30,11 @@ export function loadSheets() {
     const old = JSON.parse(localStorage.getItem(OLD_KEY));
     if (Array.isArray(old) && old.length) return fromOld(old);
   } catch { /* blocked or broken storage */ }
-  return [newSheet("Class 1")];
+  return [];
 }
 export function saveSheets(sheets) {
   try { localStorage.setItem(KEY, JSON.stringify(sheets)); } catch { /* storage full or blocked */ }
 }
-export function loadActive() { try { return localStorage.getItem("na.active"); } catch { return null; } }
-export function saveActive(id) { try { localStorage.setItem("na.active", id); } catch { /* ignore */ } }
 
 export function download(filename, text, type = "text/plain") {
   const url = URL.createObjectURL(new Blob([text], { type }));
