@@ -324,7 +324,7 @@ function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, t
   return (
     <div className="wb" onKeyDown={onKey}>
       <header className="wb-top">
-        <button className="logo-btn" onClick={onHome} aria-label="All registers" title="All registers"><Logo size={36} /></button>
+        <button className="logo-btn" onClick={onHome} aria-label="All registers" title="All registers"><Logo size={30} /></button>
         <div className="wb-titles">
           <input id="doc-title" className="doc-name" value={sheet.name} placeholder="Untitled register" aria-label="Register name"
             onChange={(e) => up((s) => ({ ...s, name: e.target.value }), "title")} />
@@ -335,26 +335,49 @@ function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, t
         </button>
       </header>
 
-      <div className="toolbar" role="toolbar" aria-label="Sheet tools">
-        <Btn icon="undo" label="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo} />
-        <Btn icon="redo" label="Redo (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo} />
-        <span className="sep" />
-        <Btn icon="cal" label="Add today's date" text={days.includes(t) ? "Today added" : "Add today"} onClick={() => addDate(t)} disabled={days.includes(t)} />
-        <label className="tb has-text" title="Add another date">
-          <Icon n="addcol" /><span>Date</span>
-          <input type="date" aria-label="Add a date" value="" onChange={(e) => addDate(e.target.value)} />
-        </label>
-        <Btn icon="person" label="Add a student" text="Student" onClick={() => setSel({ r: nRows, c: 0 })} />
-        <span className="sep" />
-        <Btn icon="fill" label="Mark everyone not yet marked as present for the selected date" text="Fill ✅" onClick={() => selDay && fillDate(selDay, "p")} disabled={!selDay || !nRows} />
-        <Btn icon="clear" label="Clear the selected date" onClick={() => selDay && fillDate(selDay, null)} disabled={!selDay} />
-        <Btn icon="delrow" label={selDay && sel.r === -1 ? "Delete this date column" : "Delete the selected student"}
-          onClick={() => { if (sel.r === -1 && selDay) delDate(selDay); else if (selPerson) delPerson(selPerson); }}
-          disabled={!(sel.r === -1 && selDay) && !selPerson} />
-        <span className="sep" />
-        <Btn icon="copy" label="Copy the whole sheet (paste into Excel or Google Sheets)" text={copied ? "Copied" : undefined}
-          onClick={async () => { if (await copyText(tableOf(sheet, "\t"))) { setCopied(true); setTimeout(() => setCopied(false), 1500); } }} disabled={!nRows} />
-        {!IS_ARTIFACT && <Btn icon="down" label="Download as .csv for Excel" onClick={() => download(`${fileName}.csv`, "﻿" + tableOf(sheet, ","), "text/csv")} disabled={!nRows} />}
+      <nav className="ribbon-tabs" aria-hidden="true"><span className="is-on">Home</span></nav>
+      <div className="ribbon" role="toolbar" aria-label="Sheet tools">
+        <div className="group">
+          <div className="group-btns">
+            <Btn icon="undo" label="Undo (Ctrl+Z)" text="Undo" onClick={undo} disabled={!canUndo} />
+            <Btn icon="redo" label="Redo (Ctrl+Shift+Z)" text="Redo" onClick={redo} disabled={!canRedo} />
+          </div>
+          <span className="group-name">Undo</span>
+        </div>
+        <div className="group">
+          <div className="group-btns">
+            <Btn icon="cal" label="Add today's date as a column" text="Today" onClick={() => addDate(t)} disabled={days.includes(t)} />
+            <label className="tb has-text" title="Add any date as a column">
+              <Icon n="addcol" /><span>Date</span>
+              <input type="date" aria-label="Add a date" value="" onChange={(e) => addDate(e.target.value)} />
+            </label>
+          </div>
+          <span className="group-name">Columns</span>
+        </div>
+        <div className="group">
+          <div className="group-btns">
+            <Btn icon="person" label="Add a student" text="Student" onClick={() => setSel({ r: nRows, c: 0 })} />
+            <Btn icon="delrow" label={selDay && sel.r === -1 ? "Delete this date column" : "Delete the selected student"} text="Delete"
+              onClick={() => { if (sel.r === -1 && selDay) delDate(selDay); else if (selPerson) delPerson(selPerson); }}
+              disabled={!(sel.r === -1 && selDay) && !selPerson} />
+          </div>
+          <span className="group-name">Rows</span>
+        </div>
+        <div className="group">
+          <div className="group-btns">
+            <Btn icon="fill" label="Mark everyone not yet marked as present for the selected date" text="Fill ✅" onClick={() => selDay && fillDate(selDay, "p")} disabled={!selDay || !nRows} />
+            <Btn icon="clear" label="Clear every mark in the selected date" text="Clear" onClick={() => selDay && fillDate(selDay, null)} disabled={!selDay} />
+          </div>
+          <span className="group-name">Attendance</span>
+        </div>
+        <div className="group">
+          <div className="group-btns">
+            <Btn icon="copy" label="Copy the whole sheet (paste into Excel or Google Sheets)" text={copied ? "Copied" : "Copy"}
+              onClick={async () => { if (await copyText(tableOf(sheet, "\t"))) { setCopied(true); setTimeout(() => setCopied(false), 1500); } }} disabled={!nRows} />
+            {!IS_ARTIFACT && <Btn icon="down" label="Download as .csv for Excel" text="Download" onClick={() => download(`${fileName}.csv`, "\ufeff" + tableOf(sheet, ","), "text/csv")} disabled={!nRows} />}
+          </div>
+          <span className="group-name">Export</span>
+        </div>
       </div>
 
       <div className="cellbar">
@@ -446,8 +469,8 @@ function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, t
             <button key={s.id} className={`tab ${s.id === sheet.id ? "is-on" : ""}`} onClick={() => s.id !== sheet.id && onOpen(s.id)}>{s.name || "Untitled"}</button>
           ))}
         </div>
-        <span className="status" aria-live="polite">{status}</span>
       </footer>
+      <div className="statusbar"><span>Ready</span><span className="status" aria-live="polite">{status}</span></div>
     </div>
   );
 }
