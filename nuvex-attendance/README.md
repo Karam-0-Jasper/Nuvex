@@ -3,14 +3,15 @@
 An attendance register that works like a spreadsheet.
 
 ## How it works
-1. **Create a class** and add the students. Type them or paste a whole list.
-2. **Take attendance:** each student has a ✓ and a ✗ button. Tap one for each person, or tap
-   **Mark the other … present** and only tap the ones who are missing. Use the arrows or tap the date to go to another day.
-3. **Register:** the full table, a column per day, with **Attended** and **Missed** totals at the end of every row.
-   Search, sort by most missed, copy it, or download it for Excel.
-4. **Tap a student** to see their days attended, days missed, attendance % and the exact days they missed.
+- **Home:** every class is a glass tile showing its students, the last 7 days of attendance and today's ✅ / ❌ count.
+  Tap **New class** to start another one. Each class keeps its own register.
+- **The sheet:** a plain register. **Name** down the side, one column per **date**, and in each date a ✅ and a ❌ box
+  you tap. At the end of every row: **✅ 14 days** attended and **❌ 2 days** missed.
+- **Names:** write one in the last row and press Enter, or paste a whole list. Tap a name to fix it, × removes it.
+- **Dates:** **Add today** (then **Add day** for the next school day). Tap a date to change it, × removes the column.
+- Removing anything can be undone. The ••• menu copies the sheet for Google Sheets or downloads it for Excel.
+- **White / dark mode** with the sun / moon button. Dark mode is true black.
 
-Removing a student or a class can be undone from the message at the bottom of the screen.
 Everything is saved on the device you use. `supabase/schema.sql` is the database setup for a later version
 where registers are shared and locked with a 4-digit passcode; the app does not use it yet.
 
