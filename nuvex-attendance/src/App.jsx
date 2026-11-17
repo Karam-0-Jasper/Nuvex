@@ -235,6 +235,17 @@ function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, t
 
   const up = (fn, tag) => commit((all) => all.map((s) => (s.id === sheet.id ? fn(s) : s)), tag);
 
+  // Opening a register on a school day (Mon–Fri) adds today's column, so the only daily job is tapping ✅ or ❌.
+  // Weekends are left alone; the Today button still adds one if a class meets then.
+  useEffect(() => {
+    const dow = new Date().getDay();
+    const todayIdx = days.indexOf(t);
+    if (todayIdx >= 0) { setSel({ r: 0, c: todayIdx + 1 }); return; }
+    if (!sheet.people.length || dow === 0 || dow === 6) return;
+    up((s) => ({ ...s, cols: [...(s.cols || []), t] }));
+    setSel({ r: 0, c: [...days, t].sort().indexOf(t) + 1 });
+  }, [sheet.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const setMark = (pid, d, v) => up((s) => {
     const marks = { ...s.marks };
     if (v) marks[k(pid, d)] = v; else delete marks[k(pid, d)];

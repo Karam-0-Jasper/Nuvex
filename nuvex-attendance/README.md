@@ -6,6 +6,10 @@ An attendance register that works like a spreadsheet.
 **Home** works like a document list: start a new register (blank, class or staff), or open one from **Recent registers**.
 Search finds a register by name; the ⋮ menu removes one. Each class is its own register.
 
+**Every day:** open the class and tap ✅ or ❌ for each student. Names are saved, so they are typed only once.
+On a school day (Mon–Fri) opening a register adds today's column by itself and selects the first student's box.
+Tip: tap **Fill ✅** first, then only tap ❌ for the students who are absent.
+
 **A register** works like a spreadsheet:
 - Column **A** is the student name. Type a name in the empty row and press Enter (or paste a whole list).
   The keyboard closes and that student's box for today is selected, ready to mark. The first name adds today's column for you.
