@@ -264,9 +264,15 @@ function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, t
   const addPeople = (names) => {
     const clean = names.map((n) => n.trim()).filter(Boolean);
     if (!clean.length) return;
-    up((s) => ({ ...s, people: [...s.people, ...clean.map((name) => ({ id: uid(), name }))] }));
+    // With no date column yet there is nothing to tick, so today's column comes with the first names.
+    const needToday = !days.length;
+    up((s) => ({ ...s, cols: needToday ? [...(s.cols || []), t] : s.cols, people: [...s.people, ...clean.map((name) => ({ id: uid(), name }))] }));
     setNewName("");
-    setSel({ r: nRows + clean.length, c: 0 });
+    // Close the phone keyboard and put the new student's box for today (or the latest date) under the finger.
+    const dayList = needToday ? [t] : days;
+    const c = (dayList.includes(t) ? dayList.indexOf(t) : dayList.length - 1) + 1;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setSel({ r: nRows, c });
   };
   const delPerson = (p) => up((s) => ({ ...s, people: s.people.filter((x) => x.id !== p.id), marks: Object.fromEntries(Object.entries(s.marks).filter(([key]) => !key.startsWith(p.id + "|"))) }));
 
@@ -282,7 +288,12 @@ function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, t
     const el = grid.current?.querySelector(`[data-rc="${sel.r}:${sel.c}"]`);
     if (!el || el.contains(document.activeElement)) return;
     if (document.activeElement?.classList.contains("fx-input") || document.activeElement?.id === "doc-title") return;
-    (el.querySelector("input") || el).focus();
+    const input = el.querySelector("input");
+    // On touch screens, focusing a cell can open or close the keyboard and jump the page under the finger.
+    // There we only bring the cell into view; the name box still gets focus so typing works.
+    if (input) input.focus({ preventScroll: true });
+    else if (!matchMedia("(pointer: coarse)").matches) el.focus({ preventScroll: true });
+    el.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [sel]);
   useEffect(() => { focusCell(); }, [sel.r, sel.c]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -427,9 +438,15 @@ function Workbook({ sheets, sheet, commit, undo, redo, canUndo, canRedo, mode, t
                     const on = sel.r === r && sel.c === i + 1;
                     return (
                       <td key={d} data-rc={`${r}:${i + 1}`} tabIndex={-1} className={`col-day mark ${d === t ? "is-today" : ""} ${on ? "is-sel" : ""}`}
-                        onClick={() => { setSel({ r, c: i + 1 }); cycle(p.id, d); }}
-                        aria-label={`${p.name}, ${fmt(d, { day: "numeric", month: "short" })}: ${m === "p" ? "present" : m === "a" ? "absent" : "not marked"}`}>
-                        {m === "p" ? "✅" : m === "a" ? "❌" : ""}
+                        onClick={() => setSel({ r, c: i + 1 })}>
+                        <span className="pair">
+                          <button type="button" tabIndex={-1} className={`box is-p ${m === "p" ? "is-on" : ""}`} aria-pressed={m === "p"}
+                            aria-label={`${p.name} present on ${fmt(d, { day: "numeric", month: "short" })}`}
+                            onClick={(e) => { e.stopPropagation(); setSel({ r, c: i + 1 }); setMark(p.id, d, m === "p" ? null : "p"); }}>✅</button>
+                          <button type="button" tabIndex={-1} className={`box is-a ${m === "a" ? "is-on" : ""}`} aria-pressed={m === "a"}
+                            aria-label={`${p.name} absent on ${fmt(d, { day: "numeric", month: "short" })}`}
+                            onClick={(e) => { e.stopPropagation(); setSel({ r, c: i + 1 }); setMark(p.id, d, m === "a" ? null : "a"); }}>❌</button>
+                        </span>
                       </td>
                     );
                   })}

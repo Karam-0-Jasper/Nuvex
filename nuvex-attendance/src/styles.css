@@ -210,7 +210,16 @@ td.mark { position: relative; }   /* only plain attendance cells; frozen cells a
 
 .col-day { width: 90px; min-width: 90px; max-width: 90px; text-align: center !important; }
 .col-day.is-today { background: var(--today); }
-td.mark { font-size: 14px; user-select: none; }
+td.mark { user-select: none; padding: 0 4px !important; text-overflow: clip; }
+.pair { display: inline-flex; gap: 4px; vertical-align: middle; }
+.box {
+  display: grid; place-items: center; width: 30px; height: 22px; border-radius: 3px; border: 1px solid var(--line);
+  font-size: 12px; line-height: 1; filter: grayscale(1); opacity: 0.35; background: var(--bg);
+}
+.box:hover { opacity: 0.7; }
+.box.is-on { filter: none; opacity: 1; }
+.box.is-p.is-on { background: color-mix(in srgb, var(--p) 16%, var(--bg)); border-color: var(--p); }
+.box.is-a.is-on { background: color-mix(in srgb, var(--a) 14%, var(--bg)); border-color: var(--a); }
 
 .col-tot { position: sticky; z-index: 2; width: 96px; min-width: 96px; max-width: 96px; }
 .tot-a { right: 96px; box-shadow: -1px 0 0 var(--head-line); }
@@ -266,7 +275,8 @@ td.num { font-weight: 600; }
   .doc-name { max-width: 100%; }
   .rownum, .corner { width: 32px; min-width: 32px; }
   .col-name { left: 32px; width: 124px; min-width: 124px; max-width: 124px; }
-  .col-day { width: 66px; min-width: 66px; max-width: 66px; }
+  .col-day { width: 80px; min-width: 80px; max-width: 80px; }
+  .box { width: 32px; height: 30px; font-size: 15px; }
   .col-tot { width: 62px; min-width: 62px; max-width: 62px; padding: 0 5px !important; font-size: 13px; }
   .tot-a { right: 62px; }
   .unit, .long { display: none; }

@@ -7,9 +7,10 @@ An attendance register that works like a spreadsheet.
 Search finds a register by name; the ⋮ menu removes one. Each class is its own register.
 
 **A register** works like a spreadsheet:
-- Column **A** is the student name. Type a name in the empty row and press Enter, or paste a whole list.
-- Each **date** is a column. **Add today** adds today; **+ Date** picks any date. Select the date at the top to change it in the cell bar.
-- **Click a cell** to mark it: ✅ present, click again for ❌ absent, again to clear.
+- Column **A** is the student name. Type a name in the empty row and press Enter (or paste a whole list).
+  The keyboard closes and that student's box for today is selected, ready to mark. The first name adds today's column for you.
+- Each **date** is a column. **Today** adds today; **+ Date** picks any date. Select the date at the top to change it in the cell bar.
+- Every box has a **✅** and a **❌** button. Tap the one you mean; tap it again to clear it.
   Keyboard: arrows to move, **P** for ✅, **A** or **X** for ❌, **Delete** to clear, **Space** to cycle.
 - The last two columns count for each student: **✅ 14 days** attended and **❌ 2 days** missed.
 - **Fill ✅** marks everyone not yet marked as present for the selected date. The bin deletes the selected student or date.
