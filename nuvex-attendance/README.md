@@ -3,14 +3,19 @@
 An attendance register that works like a spreadsheet.
 
 ## How it works
-- **Home:** every class is a glass tile showing its students, the last 7 days of attendance and today's ✅ / ❌ count.
-  Tap **New class** to start another one. Each class keeps its own register.
-- **The sheet:** a plain register. **Name** down the side, one column per **date**, and in each date a ✅ and a ❌ box
-  you tap. At the end of every row: **✅ 14 days** attended and **❌ 2 days** missed.
-- **Names:** write one in the last row and press Enter, or paste a whole list. Tap a name to fix it, × removes it.
-- **Dates:** **Add today** (then **Add day** for the next school day). Tap a date to change it, × removes the column.
-- Removing anything can be undone. The ••• menu copies the sheet for Google Sheets or downloads it for Excel.
-- **White / dark mode** with the sun / moon button. Dark mode is true black.
+**Home** works like a document list: start a new register (blank, class or staff), or open one from **Recent registers**.
+Search finds a register by name; the ⋮ menu removes one. Each class is its own register.
+
+**A register** works like a spreadsheet:
+- Column **A** is the student name. Type a name in the empty row and press Enter, or paste a whole list.
+- Each **date** is a column. **Add today** adds today; **+ Date** picks any date. Select the date at the top to change it in the cell bar.
+- **Click a cell** to mark it: ✅ present, click again for ❌ absent, again to clear.
+  Keyboard: arrows to move, **P** for ✅, **A** or **X** for ❌, **Delete** to clear, **Space** to cycle.
+- The last two columns count for each student: **✅ 14 days** attended and **❌ 2 days** missed.
+- **Fill ✅** marks everyone not yet marked as present for the selected date. The bin deletes the selected student or date.
+- **Undo / Redo** (Ctrl+Z / Ctrl+Shift+Z) for any change. The status line shows the selected student's or date's totals.
+- Tabs along the bottom switch between classes. Copy pastes the whole sheet into Excel or Google Sheets; the download button saves a .csv.
+- Light and dark theme from the moon / sun button.
 
 Everything is saved on the device you use. `supabase/schema.sql` is the database setup for a later version
 where registers are shared and locked with a 4-digit passcode; the app does not use it yet.
